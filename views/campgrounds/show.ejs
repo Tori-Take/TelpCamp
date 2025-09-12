@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= campground.name %>
+    </title>
+</head>
+
+<body>
+    <h1>
+        <%= campground.name %>
+    </h1>
+    <h2>
+        <%= campground.location %>
+    </h2>
+    <p>価格: <%= campground.price.toLocaleString() %>円/泊</p>
+    <p>詳細: <%= campground.description %>
+    </p>
+
+    <footer>
+        <p><a href="/campgrounds/<%= campground._id %>/edit">このキャンプ場を編集する</a></p>
+        <form action="/campgrounds/<%= campground._id %>?_method=DELETE" method="POST"
+            onsubmit="return confirm('本当にこのキャンプ場を削除しますか？');" style="display: inline;">
+            <button>削除</button>
+        </form>
+        <p><a href="/campgrounds">キャンプ場一覧へ戻る</a></p>
+    </footer>
+</body>
+
+</html>

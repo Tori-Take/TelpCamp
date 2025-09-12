@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp プロジェクト作成の記録 - コラム1</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>コラム1: 発展的なSeed（初期データ）の作成</h2>
+        <p>
+            Step 2では、3件の固定データを手動で作成してデータベースに投入しました。
+            しかし、開発が進むにつれて、もっと多くの、そして毎回少しずつ違うデータでテストしたくなることがあります。
+            ここでは、講義で学んだより実践的なSeedデータの自動生成スクリプトについて記録します。
+        </p>
+    </div>
+
+    <div class="step">
+        <h3>学習の目的</h3>
+        <p>
+            手作業でデータを用意するのではなく、複数のデータソースを組み合わせて、大量のリアルなダミーデータをプログラムで自動生成する手法を学びます。
+        </p>
+        <ul>
+            <li>複数のJavaScriptファイルからデータを読み込み、利用する方法を理解する。</li>
+            <li>配列からランダムに要素を抽出するテクニックを学ぶ。</li>
+            <li>ループ処理を使い、同じ処理を繰り返して大量のデータを作成する方法を習得する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h3>実装の解説</h3>
+        <p>
+            新しいSeedスクリプトは、都市名リストの`cities.js`と、キャンプ場の名前の部品となる単語リストの`seedHelpers.js`という2つの外部ファイルを活用します。
+        </p>
+        <ol>
+            <li>
+                <strong>ヘルパーファイルの準備:</strong>
+                <p><code>cities.js</code>には日本の都市名と都道府県名のデータが、<code>seedHelpers.js</code>にはキャンプ場の名前を装飾する単語（'フォレスト'や'サイレント'など）が配列として定義されています。
+                </p>
+            </li>
+            <li>
+                <strong>Seedスクリプトの修正 (<code>seeds/index.js</code>):</strong>
+                <p>メインのスクリプトを以下のように変更しました。</p>
+                <pre><code>const mongoose = require('mongoose');
+const cities = require('./cities');
+const { descriptors, places } = require('./seedHelpers');
+const Campground = require('../models/campground');
+
+mongoose.connect('mongodb://127.0.0.1:27017/telp-camp')
+    .then(() => {
+        console.log('MongoDBコネクションOK！！');
+    })
+    .catch(err => {
+        console.log('MongoDBコネクションエラー！！！');
+        console.log(err);
+    });
+
+// 配列からランダムな要素を1つ取り出すヘルパー関数
+const sample = array => array[Math.floor(Math.random() * array.length)];
+
+const seedDB = async () => {
+    await Campground.deleteMany({});
+    // forループで50回繰り返す
+    for (let i = 0; i < 50; i++) {
+        const randomCityIndex = Math.floor(Math.random() * cities.length);
+        const price = Math.floor(Math.random() * 5000) + 1000;
+        const camp = new Campground({
+            // cities.jsからランダムに場所を生成
+            location: `${cities[randomCityIndex].prefecture}${cities[randomCityIndex].city}`,
+            // seedHelpers.jsからランダムに名前を生成
+            name: `${sample(descriptors)}・${sample(places)}`,
+            price: price,
+            description: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit. Quibusdam, quidem.'
+        });
+        await camp.save();
+    }
+};
+
+seedDB().then(() => {
+    mongoose.connection.close();
+});</code></pre>
+                <div class="concept">
+                    <h4>💡 ランダムなデータ生成の仕組み</h4>
+                    <p><code>Math.random()</code>は0以上1未満の小数を返す関数です。これに配列の長さ（<code>array.length</code>）を掛けて<code>Math.floor()</code>で小数点以下を切り捨てることで、配列のランダムなインデックス番号（0から始まる通し番号）を取得できます。このテクニックを使って、<code>cities</code>配列や<code>descriptors</code>配列からランダムに要素を取り出し、それらを組み合わせて新しいキャンプ場データを作成しています。
+                    </p>
+                </div>
+            </li>
+            <li>
+                <strong>実行と確認:</strong>
+                <p>ターミナルで <code>node seeds/index.js</code>
+                    を実行すると、既存のデータがすべて削除され、代わりにランダムに生成された50件のキャンプ場データがデータベースに保存されます。これにより、開発中のアプリケーションがより「本物らしく」見えるようになります。
+                </p>
+            </li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

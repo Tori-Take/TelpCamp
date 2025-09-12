@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp プロジェクト作成の記録 - Step 3</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>学習の目的</h2>
+        <p>
+            このステップでは、CRUDの <strong>R (Read)</strong> のうち、「詳細表示機能」を実装します。
+            一覧ページから特定のアイテムを選択し、そのアイテムだけの詳細な情報を表示する、Webアプリケーションの基本的なパターンを学びます。
+        </p>
+        <ul>
+            <li>URLの一部を可変にする動的なルーティング（URLパラメータ）の使い方を理解する (例: <code>/campgrounds/:id</code>)。</li>
+            <li>リクエストオブジェクト (<code>req.params</code>) からURLパラメータを取得する方法を学ぶ。</li>
+            <li>Mongooseの<code>findById()</code>メソッドを使い、IDを元にデータベースから単一のデータを取得する方法を習得する。</li>
+            <li>サーバーからビューへ単一のオブジェクトを渡し、その内容を表示する方法を理解する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>ステップ3: 詳細表示 (Show) ページの作成</h2>
+        <p>一覧ページでキャンプ場のリンクをクリックした際に、そのキャンプ場だけの詳細情報を表示するページを作成します。</p>
+        <ol>
+            <li>
+                <strong>詳細表示ルートの追加 (<code>index.js</code>):</strong>
+                <p><code>/campgrounds/:id</code>という形式のURLにGETリクエストが来た際の処理を追加します。URLに含まれるIDを元にデータベースから特定のキャンプ場を検索し、その情報をビューに渡します。
+                </p>
+                <pre><code>// 詳細(Show)ページへのGETリクエスト
+// '/campgrounds/:id' の :id は、URLの一部を変数として受け取るためのプレースホルダーです
+app.get('/campgrounds/:id', async (req, res) => {
+    // req.paramsオブジェクトからidを取得します
+    const { id } = req.params;
+    // idを使ってデータベースから特定のキャンプ場を検索します
+    const campground = await Campground.findById(id);
+    // 見つかったキャンプ場データをビューに渡してレンダリングします
+    res.render('campgrounds/show', { campground });
+});</code></pre>
+                <div class="concept">
+                    <h4>💡 URLパラメータ (<code>:id</code>) と <code>req.params</code></h4>
+                    <p>ルート定義でコロン(<code>:</code>)を接頭辞として使うと、その部分がプレースホルダーになります。例えば、ユーザーが
+                        <code>/campgrounds/60b8...</code> にアクセスすると、Expressは <code>:id</code> の部分に <code>'60b8...'</code>
+                        という文字列を当てはめます。この値は <code>req.params</code> オブジェクトに <code>{ id: '60b8...' }</code>
+                        という形で格納され、コード内から参照できます。</p>
+                </div>
+                <div class="concept">
+                    <h4>💡 <code>Campground.findById(id)</code> とは？</h4>
+                    <p>Mongooseが提供する便利なメソッドです。引数に指定したIDを持つドキュメント（今回はキャンプ場のデータ）をデータベースから1件だけ検索してくれます。<code>Campground.findOne({ _id: id })</code>
+                        とほぼ同じ意味ですが、より簡潔に書くことができます。</p>
+                </div>
+            </li>
+            <li>
+                <strong>詳細表示ビューの作成 (<code>views/campgrounds/show.ejs</code>):</strong>
+                <p>ルートから渡された単一の<code>campground</code>オブジェクトを元に、詳細ページを生成するEJSファイルを作成します。<code>views/campgrounds</code>フォルダ内に<code>show.ejs</code>という名前で新規作成します。
+                </p>
+                <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html lang="ja"&gt;
+&lt;head&gt;
+    &lt;title&gt;&lt;%= campground.name %&gt;&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;&lt;%= campground.name %&gt;&lt;/h1&gt;
+    &lt;h2&gt;&lt;%= campground.location %&gt;&lt;/h2&gt;
+    &lt;p&gt;価格: &lt;%= campground.price.toLocaleString() %&gt;円/泊&lt;/p&gt;
+    &lt;p&gt;詳細: &lt;%= campground.description %&gt;&lt;/p&gt;
+
+    &lt;footer&gt;
+        &lt;a href="/campgrounds/&lt;%= campground._id %&gt;/edit"&gt;編集する&lt;/a&gt;
+        &lt;form action="/campgrounds/&lt;%= campground._id %&gt;?_method=DELETE" method="POST"&gt;
+            &lt;button&gt;削除&lt;/button&gt;
+        &lt;/form&gt;
+        &lt;a href="/campgrounds"&gt;キャンプ場一覧へ戻る&lt;/a&gt;
+    &lt;/footer&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+            </li>
+            <li>
+                <strong>動作確認:</strong>
+                <p>サーバーを再起動（<code>node index.js</code>）し、ブラウザで一覧ページ <code>http://localhost:3000/campgrounds</code>
+                    を開きます。一覧からどれか一つのキャンプ場をクリックすると、そのキャンプ場だけの詳細情報が表示されることを確認します。URLが <code>/campgrounds/ユニークなID</code>
+                    の形式になっていることも確認しましょう。</p>
+            </li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

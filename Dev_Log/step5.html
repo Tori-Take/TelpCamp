@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp プロジェクト作成の記録 - Step 5</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>学習の目的</h2>
+        <p>
+            このステップでは、CRUDの <strong>U (Update)</strong> にあたる「更新機能」を実装します。
+            既存のデータを編集フォームに表示し、ユーザーが変更した内容でデータベースを更新する一連の流れを学びます。
+        </p>
+        <ul>
+            <li>編集フォームを表示するためのGETリクエストと、データを更新するためのPUTリクエストの役割を理解する。</li>
+            <li>HTMLフォームからPUTリクエストを送信するための<code>method-override</code>ライブラリの使い方を学ぶ。</li>
+            <li>Mongooseの<code>findByIdAndUpdate()</code>メソッドを使い、特定のデータを検索し更新する方法を習得する。</li>
+            <li>EJSで、既存のデータをフォームの初期値として表示する方法を理解する。</li>
+            <li>モダンなJavaScriptの便利な機能である<strong>スプレッド構文</strong>の使い方を学ぶ。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>ステップ5: 更新 (Update) 機能の実装</h2>
+        <p>更新機能は、新規作成機能と同様に「フォームを表示する」部分と「データを更新する」部分の2段階で実装します。</p>
+        <ol>
+            <li>
+                <strong>編集フォーム表示ルートの追加 (<code>index.js</code>):</strong>
+                <p><code>/campgrounds/:id/edit</code>というURLへのGETリクエストを処理するルートを追加します。IDでキャンプ場を検索し、見つかったデータを<code>edit.ejs</code>に渡してレンダリングします。
+                </p>
+                <pre><code>// 編集(Edit)フォームページへのGETリクエスト
+app.get('/campgrounds/:id/edit', async (req, res) => {
+    const { id } = req.params;
+    const campground = await Campground.findById(id);
+    res.render('campgrounds/edit', { campground });
+});</code></pre>
+            </li>
+            <li>
+                <strong>編集フォームのビューを作成 (<code>views/campgrounds/edit.ejs</code>):</strong>
+                <p>ユーザーが情報を編集するためのHTMLフォームを作成します。新規登録フォームと似ていますが、各入力欄に既存のデータが初期値として設定されている点が重要です。</p>
+                <pre><code>&lt;!-- フォームの送信先とメソッドを指定 --&gt;
+&lt;form action="/campgrounds/&lt;%= campground._id %&gt;?_method=PUT" method="POST"&gt;
+    &lt;div&gt;
+        &lt;label for="name"&gt;名前:&lt;/label&gt;
+        &lt;!-- value属性に既存のデータを埋め込む --&gt;
+        &lt;input type="text" id="name" name="campground[name]" value="&lt;%= campground.name %&gt;" required&gt;
+    &lt;/div&gt;
+    ...
+&lt;/form&gt;</code></pre>
+                <div class="concept">
+                    <h4>💡 <code>method-override</code> と PUTリクエスト</h4>
+                    <p>HTMLの<code>&lt;form&gt;</code>タグは、<code>method</code>属性に<code>GET</code>と<code>POST</code>しか指定できません。しかし、RESTfulな設計では、リソースの更新には<code>PUT</code>や<code>PATCH</code>メソッドを使うのが一般的です。そこで<code>method-override</code>ライブラリが役立ちます。
+                    </p>
+                    <p>フォームの<code>action</code>属性の末尾に<code>?_method=PUT</code>というクエリ文字列を付け、<code>method="POST"</code>で送信すると、<code>method-override</code>がこのリクエストを検知し、Expressサーバー側では<code>PUT</code>リクエストとして扱ってくれます。
+                    </p>
+                </div>
+            </li>
+            <li>
+                <strong>データ更新用ルートの追加 (<code>index.js</code>):</strong>
+                <p>編集フォームから送信されたデータを受け取り、データベースを更新するためのルートを追加します。</p>
+                <pre><code>// 更新(Update)処理のPUTリクエスト
+app.put('/campgrounds/:id', async (req, res) => {
+    const { id } = req.params;
+    // findByIdAndUpdate(更新対象のid, 更新内容)
+    const campground = await Campground.findByIdAndUpdate(id, { ...req.body.campground });
+    res.redirect(`/campgrounds/${campground._id}`);
+});</code></pre>
+                <div class="concept">
+                    <h4>💡 <code>findByIdAndUpdate()</code> メソッド</h4>
+                    <p>Mongooseが提供する便利なメソッドで、第一引数に指定したIDのドキュメントを検索し、第二引数に指定した内容で更新する、という2つの処理を一度に行ってくれます。</p>
+                </div>
+                <div class="concept">
+                    <h4>💡【重要】スプレッド構文 <code>{ ...req.body.campground }</code></h4>
+                    <p>この <code>...</code> は<strong>スプレッド構文</strong>と呼ばれる、モダンなJavaScriptの非常に便利な機能です。</p>
+                    <p>フォームからデータが送られてくると、サーバー側では <code>req.body.campground</code> は
+                        <code>{ name: '...', location: '...' }</code> のようなオブジェクトになっています。
+                    </p>
+                    <p>スプレッド構文 <code>...</code> は、このオブジェクトの中身（プロパティ）をすべて取り出して、新しいオブジェクト <code>{ }</code>
+                        の中に「展開」してくれます。結果として、<code>findByIdAndUpdate</code>メソッドが第二引数として期待する、更新内容を記述したオブジェクト（例:
+                        <code>{ name: '新しい名前', location: '新しい場所' }</code>）を非常に簡潔に作ることができます。</p>
+                    <p>もしこの構文を使わない場合、<code>{ name: req.body.campground.name, location: req.body.campground.location, ... }</code>
+                        のように、すべての項目を手で書き出す必要があり、コードが長くなってしまいます。スプレッド構文は、コードを短く、そしてメンテナンスしやすくするための強力なテクニックです。</p>
+                </div>
+            </li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <h2>動作確認</h2>
+        <p>すべてのコードを書き終えたら、以下の手順で動作を確認します。</p>
+        <ol>
+            <li>ターミナルで一度サーバーを停止（<code>Ctrl + C</code>）し、再度<code>node index.js</code>コマンドで起動します。</li>
+            <li>ブラウザでキャンプ場一覧ページ(<code>http://localhost:3000/campgrounds</code>)を開き、どれか一つの詳細ページに移動します。</li>
+            <li>詳細ページにある「編集する」リンクをクリックし、編集フォームが表示されることを確認します。フォームには、そのキャンプ場の既存のデータが入力されているはずです。</li>
+            <li>フォームの内容をいくつか変更し、「更新する」ボタンを押します。</li>
+            <li>更新された内容が反映された詳細ページに自動で移動（リダイレクト）されれば成功です！</li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

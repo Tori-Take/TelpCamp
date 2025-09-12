@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>キャンプ場一覧</title>
+</head>
+
+<body>
+    <h1>すべてのキャンプ場</h1>
+    <a href="/">トップページに戻る</a>
+    <a href="/campgrounds/new">新しいキャンプ場を登録する</a>
+
+    <ul>
+        <% for (let campground of campgrounds) { %>
+            <li>
+                <a href="/campgrounds/<%= campground._id %>">
+                    <%= campground.name %> - <%= campground.location %>
+                </a>
+            </li>
+            <% } %>
+    </ul>
+</body>
+
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp プロジェクト作成の記録 - Step 1</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>学習の目的</h2>
+        <p>
+            このステップでは、Node.js環境でExpressフレームワークとMongoDBデータベースを使ったWebアプリケーション開発の基礎を学びます。
+            最終的な目標である「キャンプ場の検索・評価アプリ」の土台を構築することを目指します。
+        </p>
+        <p>具体的には、以下の項目を達成することを目的とします。</p>
+        <ul>
+            <li>Node.jsプロジェクトのセットアップ方法を理解する。</li>
+            <li>Expressを使い、基本的なWebサーバーを起動する方法を学ぶ。</li>
+            <li>Mongooseライブラリを介してMongoDBに接続する方法を習得する。</li>
+            <li>Mongoose Schemaを使い、データベースに保存するデータの構造（モデル）を定義する方法を理解する。</li>
+            <li>EJSテンプレートエンジンを使い、簡単なWebページを表示する方法を学ぶ。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>ステップ1: プロジェクトの土台作り</h2>
+        <p>まず、アプリケーションを開発するための基本的な環境を構築し、サーバーを起動できる状態にします。</p>
+        <ol>
+            <li>
+                <strong>ターミナル操作による環境構築:</strong>
+                <p>プロジェクト用のフォルダを作成し、必要なライブラリ（パッケージ）をインストールします。</p>
+                <pre><code># プロジェクト用フォルダを作成して移動
+mkdir TelpCamp
+cd TelpCamp
+
+# Node.jsプロジェクトを初期化
+npm init -y
+
+# 必要なパッケージをインストール
+npm install express mongoose ejs method-override
+
+# コードを整理するためのフォルダを作成
+mkdir models views</code></pre>
+                <div class="concept">
+                    <h4>💡 インストールしたパッケージの役割</h4>
+                    <ul>
+                        <li><code>express</code>: Webサーバーを簡単に構築するためのフレームワーク。</li>
+                        <li><code>mongoose</code>: MongoDBをJavaScriptのオブジェクトのように直感的に操作するためのライブラリ。</li>
+                        <li><code>ejs</code>: HTMLの中にJavaScriptの変数を埋め込み、動的なページを作るためのテンプレートエンジン。</li>
+                        <li><code>method-override</code>: HTMLフォームでPUTやDELETEリクエストを使えるようにするためのライブラリ（後のCRUD実装で使用）。</li>
+                    </ul>
+                </div>
+            </li>
+            <li>
+                <strong>モデルの作成 (<code>models/campground.js</code>):</strong>
+                <p>データベースに保存する「キャンプ場」のデータ構造（スキーマ）を定義します。名前、場所、料金は必須項目とし、紹介コメントは任意項目としました。</p>
+                <pre><code>const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+
+// キャンプ場のデータ構造を定義します
+const CampgroundSchema = new Schema({
+    name: {
+        type: String,
+        required: true // 必須項目
+    },
+    location: {
+        type: String,
+        required: true // 必須項目
+    },
+    price: {
+        type: Number,
+        required: true // 必須項目
+    },
+    description: {
+        type: String
+        // required: true を付けないので、この項目は任意になります
+    }
+});
+
+// 定義したスキーマを元にモデルを作成し、エクスポートします
+module.exports = mongoose.model('Campground', CampgroundSchema);</code></pre>
+                <div class="concept">
+                    <h4>💡 Mongooseスキーマとは？</h4>
+                    <p>データベースに保存するデータの「設計図」のようなものです。各データ（フィールド）がどのような型（文字列、数値など）を持つか、必須項目（<code>required: true</code>）かどうかなどを定義できます。これにより、意図しないデータが保存されるのを防ぎ、アプリケーションの安定性を高めます。
+                    </p>
+                </div>
+            </li>
+            <li>
+                <strong>Expressサーバーの作成 (<code>index.js</code>):</strong>
+                <p>Webサーバーを起動し、MongoDBに接続し、リクエストに応じてトップページを表示するメインのプログラムを作成します。</p>
+                <pre><code>// 必要なパッケージを読み込みます
+const express = require('express');
+const app = express();
+const path = require('path');
+const mongoose = require('mongoose');
+const methodOverride = require('method-override');
+
+// 作成したモデルを読み込みます
+const Campground = require('./models/campground');
+
+// --- データベース接続 ---
+async function connectDB() {
+  try {
+    await mongoose.connect('mongodb://127.0.0.1:27017/telp-camp');
+    console.log("MongoDBに接続しました。");
+  } catch (err) {
+    console.error("MongoDB接続エラー:", err);
+  }
+}
+connectDB();
+
+// --- Expressの設定 ---
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.use(express.urlencoded({ extended: true }));
+app.use(methodOverride('_method'));
+
+// --- ルーティング ---
+app.get('/', (req, res) => {
+    res.render('home');
+});
+
+// --- サーバー起動 ---
+const port = 3000;
+app.listen(port, () => {
+  console.log(`ポート${port}で待機中...`);
+});</code></pre>
+                <div class="concept">
+                    <h4>💡 データベースへの接続と async/await</h4>
+                    <p>データベースへの接続は、完了までに時間がかかる「非同期処理」です。そのため、<code>async/await</code>構文を使って処理が終わるのを待つのが一般的です。また、接続は失敗する可能性があるので、<code>try...catch</code>構文でエラーを捕捉し、プログラムが停止するのを防ぎます。この処理をサーバー起動時に行うことで、アプリケーションがリクエストを受け付ける前にデータベースとの接続を確立できます。
+                    </p>
+                </div>
+            </li>
+            <li>
+                <strong>サーバーの起動と確認:</strong>
+                <p>ターミナルで以下のコマンドを実行し、サーバーを起動します。</p>
+                <pre><code>node index.js</code></pre>
+                <p>ブラウザで <code>http://localhost:3000</code> にアクセスし、「TelpCampへようこそ！」というトップページが表示されることを確認します。</p>
+            </li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

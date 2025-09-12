@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp プロジェクト作成の記録 - Step 6</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>学習の目的</h2>
+        <p>
+            このステップでは、CRUDの <strong>D (Delete)</strong> にあたる「削除機能」を実装します。
+            これにより、Webアプリケーションにおけるデータの基本的な4つの操作（作成、読み取り、更新、削除）がすべて揃います。
+        </p>
+        <ul>
+            <li>HTMLフォームからDELETEリクエストを送信するための<code>method-override</code>ライブラリの役割を再確認する。</li>
+            <li>Mongooseの<code>findByIdAndDelete()</code>メソッドを使い、特定のデータをデータベースから削除する方法を習得する。</li>
+            <li>データ削除後のリダイレクト先として、一覧ページが適切であることを理解する。</li>
+            <li><code>onsubmit</code>イベントと<code>confirm()</code>を使い、ユーザーの誤操作を防ぐ簡単な確認機能を実装する方法を学ぶ。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>ステップ6: 削除 (Delete) 機能の実装</h2>
+        <p>削除機能は、詳細ページに設置されたボタンからDELETEリクエストを受け取り、対応するデータをデータベースから削除する、という単一のルートで実装できます。</p>
+        <ol>
+            <li>
+                <strong>削除処理ルートの追加 (<code>index.js</code>):</strong>
+                <p><code>/campgrounds/:id</code>というURLへのDELETEリクエストを処理するルートを追加します。URLのIDでキャンプ場を検索し、見つかったデータを削除します。</p>
+                <pre><code>// 削除(Delete/Destroy)処理のDELETEリクエスト
+app.delete('/campgrounds/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        // findByIdAndDelete(削除対象のid) でデータを検索して削除します
+        await Campground.findByIdAndDelete(id);
+        // 削除後、一覧ページにリダイレクトします
+        res.redirect('/campgrounds');
+    } catch (e) {
+        res.status(500).send('キャンプ場の削除に失敗しました。');
+    }
+});</code></pre>
+                <div class="concept">
+                    <h4>💡 <code>findByIdAndDelete()</code> メソッド</h4>
+                    <p>Mongooseが提供するメソッドで、引数に指定したIDを持つドキュメントを検索し、削除するという処理を一度に行ってくれます。更新の際の<code>findByIdAndUpdate</code>と同様に、非常に便利なメソッドです。
+                    </p>
+                </div>
+            </li>
+            <li>
+                <strong>詳細ページの削除フォームを修正 (<code>views/campgrounds/show.ejs</code>):</strong>
+                <p>詳細ページに設置された削除フォームに、ユーザーの誤操作を防ぐための確認ダイアログ機能を追加します。</p>
+                <pre><code>&lt;form action="/campgrounds/&lt;%= campground._id %&gt;?_method=DELETE" method="POST" onsubmit="return confirm('本当にこのキャンプ場を削除しますか？');"&gt;
+    &lt;button&gt;削除&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+                <div class="concept">
+                    <h4>💡 なぜここでも<code>method-override</code>？</h4>
+                    <p>更新（Update）の時と同様に、HTMLの<code>&lt;form&gt;</code>タグは<code>DELETE</code>メソッドを直接サポートしていません。そのため、<code>method="POST"</code>で送信しつつ、<code>action</code>属性の末尾に<code>?_method=DELETE</code>と付けることで、サーバー側でこれを<code>DELETE</code>リクエストとして解釈させています。
+                    </p>
+                    <h4>💡 <code>onsubmit="return confirm(...)"</code>による安全装置</h4>
+                    <p>フォームが送信される直前に<code>onsubmit</code>イベントが発火します。<code>confirm()</code>はブラウザに確認ダイアログを表示し、ユーザーが[OK]を押すと<code>true</code>、[キャンセル]を押すと<code>false</code>を返します。<code>return false;</code>となった場合、フォームの送信自体がキャンセルされるため、意図しない削除を防ぐことができます。
+                    </p>
+                </div>
+            </li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <h2>動作確認</h2>
+        <p>すべてのコードを書き終えたら、以下の手順で動作を確認します。</p>
+        <ol>
+            <li>ターミナルで一度サーバーを停止（<code>Ctrl + C</code>）し、再度<code>node index.js</code>コマンドで起動します。</li>
+            <li>ブラウザでキャンプ場一覧ページ(<code>http://localhost:3000/campgrounds</code>)を開き、削除してもよいキャンプ場の詳細ページに移動します。</li>
+            <li>詳細ページにある「削除」ボタンをクリックします。</li>
+            <li>「本当にこのキャンプ場を削除しますか？」という確認ダイアログが表示されることを確認します。[OK]をクリックします。</li>
+            <li>キャンプ場一覧ページに自動で移動（リダイレクト）され、先ほど削除したキャンプ場が一覧から消えていれば成功です！</li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

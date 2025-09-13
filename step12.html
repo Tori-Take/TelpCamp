@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp プロジェクト作成の記録 - Step 12</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .troubleshoot {
+            background-color: #fef9e7;
+            border-left: 5px solid #f39c12;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>学習の目的</h2>
+        <p>
+            詳細ページに続き、キャンプ場の一覧ページのデザインも改善します。また、ダミーデータの画像が毎回変わってしまう問題を解決し、各キャンプ場に固定の画像が割り当てられるようにします。
+        </p>
+        <ul>
+            <li>Bootstrapのグリッドシステム(<code>row</code>, <code>col-*</code>)とCardコンポーネントを組み合わせ、複雑なレイアウトを構築する方法を学ぶ。</li>
+            <li>外部画像サービスの仕様を理解し、意図した通りのデータを取得するためのURLの指定方法を学ぶ。</li>
+            <li>アプリケーションのデータの一貫性（同じデータは常に同じように表示されるべき）の重要性を理解する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>ステップ12: 一覧ページのデザイン改善と画像URLの永続化</h2>
+        <p>詳細ページとデザインを統一し、より見やすい一覧ページを作成しました。また、開発体験を向上させるための重要な修正も行いました。</p>
+        <ol>
+            <li>
+                <strong>一覧ページのデザイン改善 (<code>views/campgrounds/index.ejs</code>):</strong>
+                <p>これまでのシンプルなリスト表示から、BootstrapのグリッドシステムとCardを組み合わせたレイアウトに変更しました。左に画像、右にテキスト情報が配置される横長のカード形式です。</p>
+                <pre><code>&lt;% for (let campground of campgrounds) { %&gt;
+    &lt;div class="card mb-3"&gt;
+        &lt;div class="row g-0"&gt;
+            &lt;div class="col-md-4"&gt;
+                &lt;img src="&lt;%= campground.image %&gt;" class="img-fluid rounded-start" alt="..."&gt;
+            &lt;/div&gt;
+            &lt;div class="col-md-8"&gt;
+                &lt;div class="card-body"&gt;
+                    &lt;h5 class="card-title"&gt;&lt;%= campground.name %&gt;&lt;/h5&gt;
+                    ...
+                    &lt;a href="/campgrounds/&lt;%= campground._id %&gt;" class="btn btn-primary"&gt;詳細を見る&lt;/a&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;% } %&gt;</code></pre>
+                <div class="concept">
+                    <h4>💡 グリッドシステムによるレイアウト</h4>
+                    <ul>
+                        <li><strong><code>row</code></strong>: グリッドレイアウトの「行」を定義します。</li>
+                        <li><strong><code>col-md-4</code> / <code>col-md-8</code></strong>:
+                            行の中の「列」を定義します。<code>md</code>は中くらいの画面サイズ(medium)を表し、画面幅が一定以上の場合に、12分割されたうちの4つ分と8つ分の幅をそれぞれ取るように指定しています。これにより、画像とテキストが横に並びます。
+                        </li>
+                        <li><strong><code>img-fluid</code></strong>:
+                            画像が親要素（この場合は<code>col-md-4</code>）の幅に合わせて自動でリサイズされるようになり、レイアウト崩れを防ぎます。</li>
+                    </ul>
+                </div>
+            </li>
+            <li>
+                <strong>画像URLの永続化 (<code>seeds/seedindex.js</code>):</strong>
+                <p>一覧ページと詳細ページで画像が異なったり、リロードするたびに画像が変わってしまう問題に気づきました。これは、ダミー画像サービス<code>picsum.photos</code>の仕様が原因でした。
+                </p>
+                <div class="troubleshoot">
+                    <h4>💡 問題の原因と解決策</h4>
+                    <p>
+                        <strong>原因:</strong>
+                        当初使用していた<code>https://picsum.photos/800/600?random=${i}</code>というURLは、「アクセスするたびにランダムな画像を取得する」という仕様でした。そのため、ページが表示されるたびに毎回違う画像が読み込まれていました。
+                    </p>
+                    <p>
+                        <strong>解決策:</strong>
+                        URLの形式を<code>https://picsum.photos/id/${i}/800/600</code>に変更しました。この形式は、指定したIDに紐づく<strong>固定の画像</strong>を返す仕様です。ループのインデックス<code>i</code>をIDとして使うことで、各キャンプ場にユニークで、かつ何度アクセスしても変わらない画像を割り当てることができました。
+                    </p>
+                </div>
+                <p>この修正により、アプリケーションのデータの一貫性が保たれ、より自然な動作になりました。</p>
+                <pre><code>// seeds/seedindex.js の修正
+const camp = new Campground({
+    // ...
+    image: `https://picsum.photos/id/${i}/800/600`,
+    // ...
+});</code></pre>
+            </li>
+            <li>
+                <strong>動作確認:</strong>
+                <p>
+                    <code>node seeds/seedindex.js</code>コマンドでデータベースのデータを再投入し、サーバーを再起動しました。
+                    ブラウザで確認したところ、一覧ページと詳細ページの画像がキャンプ場ごとに一致し、ページをリロードしても画像が変わらないことが確認できました。
+                </p>
+            </li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

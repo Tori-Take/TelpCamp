@@ -31,7 +31,7 @@ const seedDB = async () => {
             // 例: 「サイレント・キャンプ」
             name: `${sample(descriptors)}・${sample(places)}`,
             // picsum.photosからランダムな画像を取得するURL。ループのインデックスiを使ってユニークな画像を生成します。
-            image: `https://picsum.photos/800/600?random=${i}`,
+            image: `https://picsum.photos/id/${i+100}/800/600`,
             price: price,
             description: sample(descriptions)
         });

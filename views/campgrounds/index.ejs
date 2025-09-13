@@ -1,14 +1,30 @@
 <% layout('layouts/boilerplate') %>
-    <h1>すべてのキャンプ場</h1>
-    <a href="/">トップページに戻る</a>
-    <a href="/campgrounds/new">新しいキャンプ場を登録する</a>
 
-    <ul>
-        <% for (let campground of campgrounds) { %>
-            <li>
-                <a href="/campgrounds/<%= campground._id %>">
-                    <%= campground.name %> - <%= campground.location %>
-                </a>
-            </li>
-            <% } %>
-    </ul>
+    <h1>すべてのキャンプ場</h1>
+    <p>
+        <a href="/campgrounds/new">新しいキャンプ場を登録する</a>
+    </p>
+
+    <% for (let campground of campgrounds) { %>
+        <div class="card mb-3">
+            <div class="row g-0">
+                <div class="col-md-4">
+                    <img src="<%= campground.image %>" class="img-fluid rounded-start" alt="<%= campground.name %>の画像">
+                </div>
+                <div class="col-md-8">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <%= campground.name %>
+                        </h5>
+                        <p class="card-text">
+                            <%= campground.description %>
+                        </p>
+                        <p class="card-text"><small class="text-muted">
+                                <%= campground.location %>
+                            </small></p>
+                        <a href="/campgrounds/<%= campground._id %>" class="btn btn-primary">詳細を見る</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <% } %>

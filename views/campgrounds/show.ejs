@@ -1,15 +1,4 @@
-<!DOCTYPE html>
-<html lang="ja">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>
-        <%= campground.name %>
-    </title>
-</head>
-
-<body>
+<% layout('layouts/boilerplate') %>
     <h1>
         <%= campground.name %>
     </h1>
@@ -28,6 +17,3 @@
         </form>
         <p><a href="/campgrounds">キャンプ場一覧へ戻る</a></p>
     </footer>
-</body>
-
-</html>

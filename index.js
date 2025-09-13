@@ -4,6 +4,7 @@ const app = express();
 const path = require('path');
 const mongoose = require('mongoose');
 const methodOverride = require('method-override');
+const ejsMate = require('ejs-mate');
 
 // 作成したモデルを読み込みます
 const Campground = require('./models/campground');
@@ -25,6 +26,8 @@ async function connectDB() {
 connectDB();
 
 // --- Expressの設定 ---
+// ejs-mateをEJSのデフォルトエンジンとして使用する設定
+app.engine('ejs', ejsMate);
 // EJSをビューエンジンとして使用する設定
 app.set('view engine', 'ejs');
 // viewsフォルダの場所をExpressに教える設定
@@ -136,5 +139,3 @@ const port = 3000;
 app.listen(port, () => {
   console.log(`TelpCampサーバーがポート${port}で待機中...`);
 });
-
-

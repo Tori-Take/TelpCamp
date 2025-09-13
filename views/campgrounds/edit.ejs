@@ -1,37 +1,30 @@
-<!DOCTYPE html>
-<html lang="ja">
+<% layout('layouts/boilerplate') %>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>キャンプ場情報編集</title>
-</head>
+    <body>
+        <h1>キャンプ場情報を編集</h1>
 
-<body>
-    <h1>キャンプ場情報を編集</h1>
+        <form action="/campgrounds/<%= campground._id %>?_method=PUT" method="POST">
+            <div>
+                <label for="name">名前:</label>
+                <input type="text" id="name" name="campground[name]" value="<%= campground.name %>" required>
+            </div>
+            <div>
+                <label for="location">場所:</label>
+                <input type="text" id="location" name="campground[location]" value="<%= campground.location %>"
+                    required>
+            </div>
+            <div>
+                <label for="price">価格:</label>
+                <input type="number" id="price" name="campground[price]" value="<%= campground.price %>" min="0"
+                    required>
+            </div>
+            <div>
+                <label for="description">説明:</label>
+                <textarea id="description" name="campground[description]"><%= campground.description %></textarea>
+            </div>
+            <button>更新する</button>
+        </form>
 
-    <form action="/campgrounds/<%= campground._id %>?_method=PUT" method="POST">
-        <div>
-            <label for="name">名前:</label>
-            <input type="text" id="name" name="campground[name]" value="<%= campground.name %>" required>
-        </div>
-        <div>
-            <label for="location">場所:</label>
-            <input type="text" id="location" name="campground[location]" value="<%= campground.location %>" required>
-        </div>
-        <div>
-            <label for="price">価格:</label>
-            <input type="number" id="price" name="campground[price]" value="<%= campground.price %>" min="0" required>
-        </div>
-        <div>
-            <label for="description">説明:</label>
-            <textarea id="description" name="campground[description]"><%= campground.description %></textarea>
-        </div>
-        <button>更新する</button>
-    </form>
+        <a href="/campgrounds/<%= campground._id %>">詳細に戻る</a>
 
-    <a href="/campgrounds/<%= campground._id %>">詳細に戻る</a>
-
-</body>
-
-</html>
+    </body>

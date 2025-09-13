@@ -134,5 +134,5 @@ app.delete('/campgrounds/:id', async (req, res) => {
 // --- サーバー起動 ---
 const port = 3000;
 app.listen(port, () => {
-  console.log(`ポート${port}で待機中...`);
+  console.log(`TelpCampサーバーがポート${port}で待機中...`);
 });

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp プロジェクト作成の記録 - Step 13</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>学習の目的</h2>
+        <p>
+            CRUD機能の「C (Create)」に対応する、ユーザーが新しいデータを入力するためのフォームページを作成し、デザインを整えます。
+        </p>
+        <ul>
+            <li>Bootstrapのフォーム関連クラスを使い、見やすく使いやすい入力フォームを作成する方法を学ぶ。</li>
+            <li>Bootstrapのグリッドシステムを使い、フォームをページの中央に配置するなど、レイアウトを制御する方法を習得する。</li>
+            <li>フォームの<code>name</code>属性の命名規則と、それがExpressサーバー側でどのようにデータとして受け取られるか（<code>req.body</code>の構造）を理解する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>ステップ13: 新規登録ページの作成とデザイン</h2>
+        <p>キャンプ場を新しく登録するためのフォームページ（<code>new.ejs</code>）を作成し、Bootstrapを使って見た目を整えました。</p>
+        <ol>
+            <li>
+                <strong>新規登録ページの作成 (<code>views/campgrounds/new.ejs</code>):</strong>
+                <p><code>views/campgrounds</code>フォルダに<code>new.ejs</code>ファイルを新規作成しました。このフォームは、<code>POST</code>メソッドで<code>/campgrounds</code>にデータを送信します。
+                </p>
+                <pre><code>&lt;% layout('layouts/boilerplate') %&gt;
+
+&lt;div class="row"&gt;
+    &lt;h1 class="text-center"&gt;新しいキャンプ場を登録&lt;/h1&gt;
+    &lt;div class="col-6 offset-3"&gt;
+        &lt;form action="/campgrounds" method="POST"&gt;
+            &lt;div class="mb-3"&gt;
+                &lt;label class="form-label" for="name"&gt;キャンプ場名&lt;/label&gt;
+                &lt;input class="form-control" type="text" id="name" name="campground[name]"&gt;
+            &lt;/div&gt;
+            &lt;!-- ... 他の入力項目 ... --&gt;
+            &lt;div class="mb-3"&gt;
+                &lt;label class="form-label" for="price"&gt;価格&lt;/label&gt;
+                &lt;div class="input-group"&gt;
+                    &lt;span class="input-group-text"&gt;¥&lt;/span&gt;
+                    &lt;input type="number" id="price" class="form-control" name="campground[price]"&gt;
+                    &lt;span class="input-group-text"&gt;/泊&lt;/span&gt;
+                &lt;/div&gt;
+            &lt;/div&gt;
+            &lt;div class="mb-3"&gt;
+                &lt;button class="btn btn-success"&gt;登録する&lt;/button&gt;
+            &lt;/div&gt;
+        &lt;/form&gt;
+        &lt;a href="/campgrounds"&gt;一覧へ戻る&lt;/a&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+            </li>
+            <li>
+                <strong>デザインとレイアウトの解説:</strong>
+                <p>Bootstrapのクラスを活用して、フォームのデザインと配置を整えました。</p>
+                <ul>
+                    <li><strong>中央配置:</strong>
+                        <code>&lt;div class="col-6 offset-3"&gt;</code>を使い、フォームを画面の中央に配置しました。これは「画面を12分割したうちの6つ分の幅を使い、左側に3つ分の空白を設ける」という意味です。
+                    </li>
+                    <li><strong>フォーム部品:</strong>
+                        <code>form-label</code>や<code>form-control</code>といったクラスで、ラベルと入力欄のスタイルを統一しました。</li>
+                    <li><strong>インプットグループ:</strong>
+                        価格の入力欄では<code>input-group</code>を使い、「¥」マークや「/泊」といったテキストを入力欄と一体化させて表示しました。</li>
+                </ul>
+            </li>
+            <li>
+                <div class="concept">
+                    <h4>💡 <code>name="campground[...]"</code>の重要性</h4>
+                    <p>
+                        各<code>&lt;input&gt;</code>タグの<code>name</code>属性を<code>campground[name]</code>や<code>campground[location]</code>のように設定しました。
+                        これは非常に重要なテクニックです。
+                    </p>
+                    <p>
+                        この命名規則により、フォームが送信されたとき、Expressサーバーは<code>req.body</code>を以下のようなネストされたオブジェクトとして自動的に解析してくれます。
+                    </p>
+                    <pre><code>// req.body の中身の例
+{
+  campground: {
+    name: '入力されたキャンプ場名',
+    location: '入力された場所',
+    price: '入力された価格'
+    // ...
+  }
+}</code></pre>
+                    <p>
+                        このおかげで、サーバー側の<code>POST</code>ルートでは<code>new Campground(req.body.campground)</code>と書くだけで、Mongooseモデルに必要なデータをまとめて渡すことができ、コードが非常に簡潔になります。
+                    </p>
+                </div>
+            </li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

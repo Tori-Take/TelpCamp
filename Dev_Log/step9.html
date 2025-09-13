@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp プロジェクト作成の記録 - Step 9</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>学習の目的</h2>
+        <p>
+            このステップでは、サイトの主要なナビゲーションとなる<strong>ナビゲーションバー</strong>をBootstrapコンポーネントを使って実装します。
+            さらに、そのナビゲーションバーを「パーシャル（Partial）」として別ファイルに切り出すことで、コードの整理と再利用性を高める方法を学びます。
+        </p>
+        <ul>
+            <li>BootstrapのNavbarコンポーネントを実装し、カスタマイズする方法（ダークテーマ、スティッキー設定）を学ぶ。</li>
+            <li>ヘッダーやフッターなど、共通のUI部品を「パーシャル」として別ファイルに分割する目的とメリットを理解する。</li>
+            <li>EJSの<code>&lt;%- include() %&gt;</code>構文を使って、パーシャルファイルをレイアウトに埋め込む方法を習得する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>ステップ9: ナビゲーションバーの追加とパーシャル化</h2>
+        <p>サイトのすべてのページに共通のヘッダーとして、ナビゲーションバーを追加します。</p>
+        <ol>
+            <li>
+                <strong>ナビゲーションバーの追加:</strong>
+                <p>まず、<code>boilerplate.ejs</code>の<code>&lt;body&gt;</code>タグ直下に、BootstrapのNavbarコンポーネントのコードを追加しました。
+                    今回は「シンプルでダーク、スクロールしても画面上部に固定される」という要件を満たすため、以下のクラスを設定しました。</p>
+                <ul>
+                    <li><code>navbar</code>: ナビゲーションバーの基本クラス。</li>
+                    <li><code>navbar-expand-lg</code>: 画面幅が広い時(lg)はリンクを横に並べ、狭い時はハンバーガーメニューに切り替えるレスポンシブ設定。</li>
+                    <li><code>navbar-dark bg-dark</code>: 背景を暗く、文字を明るくするダークテーマ。</li>
+                    <li><code>sticky-top</code>: スクロールしても画面上部に固定されるスティッキー設定。</li>
+                </ul>
+            </li>
+            <li>
+                <strong>パーシャルへの切り出し:</strong>
+                <p>ナビゲーションバーはサイト全体で使われる共通部品です。<code>boilerplate.ejs</code>に直接書き続けると、ファイルが長くなり見通しが悪くなります。
+                    そこで、このナビゲーションバーのコードを専用のファイルに切り出す「パーシャル化」を行いました。</p>
+                <ol>
+                    <li><code>views</code>フォルダ内に<code>partials</code>という新しいフォルダを作成。</li>
+                    <li><code>partials</code>フォルダ内に<code>navbar.ejs</code>というファイルを作成し、ナビゲーションバーのHTMLコードをすべて移動。</li>
+                    <li>元の<code>boilerplate.ejs</code>でナビゲーションバーがあった場所に、以下のコードを記述してパーシャルファイルを読み込む。</li>
+                </ol>
+                <pre><code>&lt;%- include('../partials/navbar') %&gt;</code></pre>
+                <div class="concept">
+                    <h4>💡 パーシャル化のメリット</h4>
+                    <p>
+                        パーシャル（Partial）とは、ヘッダーやフッターのように、サイトの様々な部分で再利用される小さなコードの断片です。
+                        これらを別ファイルに分けることで、以下のようなメリットがあります。
+                    </p>
+                    <ul>
+                        <li><strong>可読性の向上:</strong> メインのレイアウトファイル (<code>boilerplate.ejs</code>)
+                            が、サイト全体の構造だけを示すシンプルなものになり、見通しが良くなります。</li>
+                        <li><strong>メンテナンス性の向上:</strong>
+                            ナビゲーションバーのリンクを一つ修正したい場合、<code>navbar.ejs</code>という専用のファイルを修正するだけで済みます。</li>
+                        <li><strong>再利用性の向上:</strong>
+                            もし将来、特定のページだけに別のヘッダーを使いたくなった場合でも、新しいパーシャルファイルを作成して読み込むだけで簡単に対応できます。</li>
+                    </ul>
+                </div>
+            </li>
+            <li>
+                <strong>Gitへのコミット:</strong>
+                <p>
+                    ナビゲーションバーの追加とパーシャル化という、2つの意味のある機能実装が完了し、正常に動作するこのタイミングでGitにコミットしました。
+                    コミットメッセージは<code>feat: Add navbar and extract to partial</code>としました。
+                    これにより、いつでもこの安全な状態に戻れるセーブポイントが作成されました。
+                </p>
+            </li>
+            <li>
+                <strong>動作確認:</strong>
+                <p>サーバーを再起動し、ブラウザでページをリロード。ナビゲーションバーが正しく表示され、スクロールしても追従することを確認しました。
+                    パーシャル化によって見た目は変わりませんが、プロジェクトのコード構造はより整理され、プロフェッショナルなものになりました。</p>
+            </li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

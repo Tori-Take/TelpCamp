@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp プロジェクト作成の記録 - Step 11</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .troubleshoot {
+            background-color: #fef9e7;
+            border-left: 5px solid #f39c12;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>学習の目的</h2>
+        <p>
+            アプリケーションをよりリアルで魅力的にするため、ダミーデータに画像と日本語の説明文を追加し、それをWebページ上に表示させることを目指します。
+        </p>
+        <ul>
+            <li>Seedファイル（初期データ投入スクリプト）を修正し、データに画像URLと日本語の説明文を追加する方法を学ぶ。</li>
+            <li>Mongooseのスキーマを更新し、新しいデータフィールドを追加する方法を理解する。</li>
+            <li>EJSテンプレートを修正し、データベースから渡された画像やテキストデータを表示する方法を習得する。</li>
+            <li>BootstrapのCardコンポーネントを使い、情報を整理して見やすくレイアウトする方法を実践する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>ステップ11: Seedデータの拡充と詳細ページのデザイン改善</h2>
+        <p>これまでのテキストだけの情報から、画像付きのよりリッチなコンテンツを表示できるように改善を行いました。</p>
+        <ol>
+            <li>
+                <strong>画像URLの追加と試行錯誤 (<code>seeds/seedindex.js</code>):</strong>
+                <p>最初に、各キャンプ場データに画像URLを追加する修正を行いました。</p>
+                <div class="troubleshoot">
+                    <h4>💡 ランダム画像取得での試行錯誤</h4>
+                    <p>
+                        当初、キャンプ関連の画像が取得できる<code>Unsplash</code>や<code>LoremFlickr</code>といったサービスを試しました。
+                        キーワードで画像を絞り込めるため、よりリアルなデータを期待しましたが、アクセス制限などの問題で安定して画像を取得することができませんでした。
+                        開発においては、まず安定して動作することが重要であるため、最終的にテーマの指定はできないものの、確実にランダムな画像を取得できる<code>picsum.photos</code>を採用することにしました。
+                        このような問題解決の過程も、開発の重要な学習の一部です。
+                    </p>
+                </div>
+                <p>最終的に、<code>seedindex.js</code>の画像URL部分は以下のようになりました。</p>
+                <pre><code>// 50件のサンプルデータを作成・保存します
+for (let i = 0; i < 50; i++) {
+    // ...
+    const camp = new Campground({
+        // ...
+        image: `https://picsum.photos/800/600?random=${i}`,
+        // ...
+    });
+    await camp.save();
+}</code></pre>
+            </li>
+            <li>
+                <strong>説明文の日本語化 (<code>seedHelpers.js</code>, <code>seedindex.js</code>):</strong>
+                <p>ダミーの説明文を、よりリアルな日本語の文章に差し替えました。まず、<code>seeds/seedHelpers.js</code>に説明文の候補となる配列を追加しました。</p>
+                <pre><code>module.exports.descriptions = [
+    '都心からのアクセスも良く、週末に気軽に立ち寄れるキャンプ場です。...',
+    '満点の星空が自慢の、静かで落ち着いた雰囲気のキャンプサイト。...',
+    // ...
+]</code></pre>
+                <p>次に、<code>seedindex.js</code>でこの配列をインポートし、ランダムに選択して使用するように変更しました。</p>
+                <pre><code>const { descriptors, places, descriptions } = require('./seedHelpers');
+// ...
+const camp = new Campground({
+    // ...
+    description: sample(descriptions)
+});</code></pre>
+            </li>
+            <li>
+                <strong>モデルの更新 (<code>models/campground.js</code>):</strong>
+                <p>新しい`image`プロパティをデータベースに保存できるよう、Mongooseのスキーマ定義に`image`フィールドを追加しました。</p>
+                <pre><code>const CampgroundSchema = new Schema({
+    name: String,
+    location: String,
+    image: String, // この行を追加
+    price: Number,
+    description: String
+});</code></pre>
+            </li>
+            <li>
+                <strong>詳細ページのデザイン改善 (<code>views/campgrounds/show.ejs</code>):</strong>
+                <p>キャンプ場の詳細ページを、これまでのシンプルな表示から、Bootstrapの<strong>Cardコンポーネント</strong>を使って画像付きのモダンなデザインに一新しました。これにより、情報が整理され、視覚的に魅力的になりました。
+                </p>
+                <pre><code>&lt;% layout('layouts/boilerplate') %&gt;
+
+&lt;div class="card mb-3"&gt;
+    &lt;img src="&lt;%= campground.image %&gt;" class="card-img-top" alt="..."&gt;
+    &lt;div class="card-body"&gt;
+        &lt;h5 class="card-title"&gt;&lt;%= campground.name %&gt;&lt;/h5&gt;
+        &lt;p class="card-text"&gt;&lt;%= campground.description %&gt;&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;ul class="list-group list-group-flush"&gt;
+        &lt;li class="list-group-item text-muted"&gt;&lt;%= campground.location %&gt;&lt;/li&gt;
+        &lt;li class="list-group-item"&gt;&lt;%= campground.price.toLocaleString() %&gt;円/泊&lt;/li&gt;
+    &lt;/ul&gt;
+    &lt;div class="card-body"&gt;
+        &lt;a href="..." class="card-link btn btn-info"&gt;編集&lt;/a&gt;
+        &lt;form class="d-inline" action="..." method="POST"&gt;
+            &lt;button class="btn btn-danger"&gt;削除&lt;/button&gt;
+        &lt;/form&gt;
+    &lt;/div&gt;
+    &lt;div class="card-footer text-muted"&gt;
+        &lt;a href="/campgrounds"&gt;キャンプ場一覧へ戻る&lt;/a&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+                <div class="concept">
+                    <h4>💡 Bootstrap Cardコンポーネントの活用</h4>
+                    <p>Cardコンポーネントは、画像、テキスト、リスト、ボタンなどを柔軟に組み合わせられる便利な部品です。今回のコードで使われている主なクラスの役割は以下の通りです。</p>
+                    <ul>
+                        <li><strong><code>card</code></strong>: 全体を囲むコンテナ。枠線や角丸などの基本的なスタイルを適用します。</li>
+                        <li><strong><code>card-img-top</code></strong>: 画像をカードの上部に配置し、角丸に沿ってきれいに表示させます。</li>
+                        <li><strong><code>card-body</code></strong>: パディング（内側の余白）を持つコンテンツ領域。タイトル、テキスト、ボタンなどを配置します。</li>
+                        <li><strong><code>card-title</code> / <code>card-text</code></strong>:
+                            カード内の見出しや本文に適したスタイルを適用します。</li>
+                        <li><strong><code>list-group</code> / <code>list-group-flush</code></strong>:
+                            場所や価格などの情報をリスト形式で表示します。<code>list-group-flush</code>は、カードの左右の境界線をなくし、一体感のあるデザインにします。</li>
+                        <li><strong><code>text-muted</code></strong>: テキストの色を少し薄くし、補助的な情報であることを示します。</li>
+                        <li><strong><code>btn</code> / <code>btn-info</code> / <code>btn-danger</code></strong>:
+                            ボタンの基本スタイルと、情報（青系）、危険（赤系）といった意味合いを持つ配色を適用します。</li>
+                        <li><strong><code>d-inline</code></strong>:
+                            削除ボタンを囲む<code>&lt;form&gt;</code>タグをインライン要素として扱うことで、編集ボタンの横に並べて表示させます。</li>
+                        <li><strong><code>card-footer</code></strong>: カードのフッター部分。補助的な情報やリンクを配置するのに適しています。</li>
+                    </ul>
+                </div>
+            </li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

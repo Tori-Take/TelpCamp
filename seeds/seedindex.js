@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const cities = require('./cities');
-const { descriptors, places } = require('./seedHelpers');
+const { descriptors, places, descriptions } = require('./seedHelpers');
 const Campground = require('../models/campground');
 
 mongoose.connect('mongodb://127.0.0.1:27017/telp-camp')
@@ -30,8 +30,10 @@ const seedDB = async () => {
             location: `${cities[randomCityIndex].prefecture}${cities[randomCityIndex].city}`,
             // 例: 「サイレント・キャンプ」
             name: `${sample(descriptors)}・${sample(places)}`,
+            // picsum.photosからランダムな画像を取得するURL。ループのインデックスiを使ってユニークな画像を生成します。
+            image: `https://picsum.photos/800/600?random=${i}`,
             price: price,
-            description: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit. Quibusdam, quidem.'
+            description: sample(descriptions)
         });
         await camp.save();
     }

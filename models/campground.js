@@ -11,6 +11,9 @@ const CampgroundSchema = new Schema({
         type: String,
         required: true // 必須項目
     },
+    image: {
+        type: String,
+    },
     price: {
         type: Number,
         required: true // 必須項目

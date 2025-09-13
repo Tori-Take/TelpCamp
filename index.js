@@ -139,3 +139,9 @@ const port = 3000;
 app.listen(port, () => {
   console.log(`TelpCampサーバーがポート${port}で待機中...`);
 });
+
+// picsum.photos (Lorem Picsum) を利用してランダムな画像を表示する場合のURL例
+// 例: https://picsum.photos/seed/picsum/200/300
+// 例: https://picsum.photos/200/300?grayscale
+// 例: https://picsum.photos/200/300/?blur
+// 詳細: https://picsum.photos/

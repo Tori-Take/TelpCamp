@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp プロジェクト作成の記録 - Step 15</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>学習の目的</h2>
+        <p>
+            ページの見た目のバランスを調整するため、Bootstrapのグリッドシステムを応用してコンテンツの幅と配置を制御する方法を学びます。
+        </p>
+        <ul>
+            <li>Bootstrapのグリッドシステム（<code>row</code>, <code>col</code>）を使ってコンテンツの幅を制限する方法を習得する。</li>
+            <li>オフセットクラス（<code>offset-*</code>）を使い、コンテンツを水平方向の中央に配置するテクニックを理解する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>ステップ15: 詳細ページのレイアウト調整</h2>
+        <p>キャンプ場の詳細ページ（<code>show.ejs</code>）のカードが画面いっぱいに広がりすぎないよう、レイアウトを調整しました。新規登録ページや編集ページと同様に、コンテンツを画面中央に配置することで、視認性とデザイン性を向上させました。
+        </p>
+        <ol>
+            <li>
+                <strong>レイアウトの調整 (<code>views/campgrounds/show.ejs</code>):</strong>
+                <p>既存のCardコンポーネント全体を、Bootstrapのグリッドシステム用の<code>div</code>タグで囲みました。</p>
+                <pre><code>&lt;% layout('layouts/boilerplate') %&gt;
+
+&lt;div class="row"&gt;
+    &lt;div class="col-6 offset-3"&gt;
+        &lt;div class="card mb-3"&gt;
+            &lt;!-- ... カードの中身は省略 ... --&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+            </li>
+            <li>
+                <div class="concept">
+                    <h4>💡 グリッドとオフセットによる中央配置</h4>
+                    <p>
+                        Bootstrapのグリッドシステムは、ページを仮想的に12個の列に分割してレイアウトを組みます。今回はこの仕組みを利用して、コンテンツを中央に配置しました。
+                    </p>
+                    <ul>
+                        <li>
+                            <strong><code>&lt;div class="row"&gt;</code></strong>:
+                            グリッドシステムを適用するための「行」を定義します。この中に「列」を配置していきます。
+                        </li>
+                        <li>
+                            <strong><code>&lt;div class="col-6 offset-3"&gt;</code></strong>:
+                            これが中央配置の鍵となる部分です。
+                            <ul>
+                                <li><strong><code>col-6</code></strong>: 「列」の幅を12分割のうちの6つ分（つまり画面の50%）に設定します。</li>
+                                <li><strong><code>offset-3</code></strong>: 「列」の左側に、3つ分の空の列（画面の25%）をマージンとして設けます。</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p>結果として、<code>[左の空白 3列] + [コンテンツ 6列] + [右の余り 3列] = 合計12列</code>となり、幅が50%のコンテンツが画面の中央に綺麗に配置されることになります。このテクニックは、様々な場面でレイアウトを整えるのに役立ちます。
+                    </p>
+                </div>
+            </li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

@@ -3,35 +3,66 @@
     <div class="row">
         <h1 class="text-center">キャンプ場を編集</h1>
         <div class="col-6 offset-3">
-            <form action="/campgrounds/<%= campground._id %>?_method=PUT" method="POST">
+            <form action="/campgrounds/<%= campground._id %>?_method=PUT" method="POST" novalidate
+                class="needs-validation">
                 <div class="mb-3">
                     <label class="form-label" for="name">キャンプ場名</label>
                     <input class="form-control" type="text" id="name" name="campground[name]"
-                        value="<%= campground.name %>">
+                        value="<%= campground.name %>" required>
+                    <div class="valid-feedback">
+                        OK!
+                    </div>
+                    <div class="invalid-feedback">
+                        キャンプ場名を入力してください。
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="location">場所</label>
                     <input class="form-control" type="text" id="location" name="campground[location]"
-                        value="<%= campground.location %>">
+                        value="<%= campground.location %>" required>
+                    <div class="valid-feedback">
+                        OK!
+                    </div>
+                    <div class="invalid-feedback">
+                        場所を入力してください。
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="image">画像URL</label>
                     <input class="form-control" type="text" id="image" name="campground[image]"
-                        value="<%= campground.image %>">
+                        value="<%= campground.image %>" required>
+                    <div class="valid-feedback">
+                        OK!
+                    </div>
+                    <div class="invalid-feedback">
+                        画像URLを入力してください。
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="price">価格</label>
                     <div class="input-group">
                         <span class="input-group-text">¥</span>
                         <input type="number" id="price" class="form-control" placeholder="0" name="campground[price]"
-                            aria-label="価格" value="<%= campground.price %>">
+                            aria-label="価格" value="<%= campground.price %>" required min="0">
                         <span class="input-group-text">/泊</span>
+                    </div>
+                    <div class="valid-feedback">
+                        OK!
+                    </div>
+                    <div class="invalid-feedback">
+                        価格を0以上の半角数字で入力してください。
                     </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="description">説明</label>
-                    <textarea class="form-control" id="description" name="campground[description]"
-                        rows="3"><%= campground.description %></textarea>
+                    <textarea class="form-control" id="description" name="campground[description]" rows="3"
+                        required><%= campground.description %></textarea>
+                    <div class="valid-feedback">
+                        OK!
+                    </div>
+                    <div class="invalid-feedback">
+                        説明を入力してください。
+                    </div>
                 </div>
                 <div class="mb-3">
                     <button class="btn btn-info">更新する</button>

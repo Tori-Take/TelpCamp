@@ -5,6 +5,8 @@ const path = require('path');
 const mongoose = require('mongoose');
 const methodOverride = require('method-override');
 const ejsMate = require('ejs-mate');
+const ExpressError = require('./utils/ExpressError'); // 作成したExpressErrorを読み込み
+const wrapAsync = require('./utils/wrapAsync'); // 作成したwrapAsyncを読み込み
 
 // 作成したモデルを読み込みます
 const Campground = require('./models/campground');
@@ -46,12 +48,12 @@ app.get('/', (req, res) => {
 });
 
 // キャンプ場一覧(Index)ページへのGETリクエスト
-app.get('/campgrounds', async (req, res) => {
+app.get('/campgrounds', wrapAsync(async (req, res) => {
     // データベースから全てのキャンプ場データを取得します
     const campgrounds = await Campground.find({});
     // 取得したデータを 'campgrounds' という名前でビューに渡し、レンダリングします
     res.render('campgrounds/index', { campgrounds });
-});
+}));
 
 // 新規登録(New)フォームページへのGETリクエスト
 // 注意: このルートは '/campgrounds/:id' よりも先に定義する必要があります
@@ -61,77 +63,69 @@ app.get('/campgrounds/new', (req, res) => {
 });
 
 // 新規登録(Create)処理のPOSTリクエスト
-app.post('/campgrounds', async (req, res) => {
-    try {
-        // フォームから送信されたデータ(req.body.campground)を元に新しいモデルインスタンスを作成
-        const campground = new Campground(req.body.campground);
-        // データベースに保存
-        await campground.save();
-        // 保存後、作成されたキャンプ場の詳細ページにリダイレクト
-        res.redirect(`/campgrounds/${campground._id}`);
-    } catch (e) {
-        // Mongooseのバリデーションエラーなどが発生した場合
-        console.error("登録エラー:", e);
-        res.status(500).send('キャンプ場の登録に失敗しました。入力内容を確認してください。');
-    }
-});
+// MongooseのバリデーションエラーなどはwrapAsyncが自動でキャッチするため、このルートハンドラ内でnextは不要です。
+app.post('/campgrounds', wrapAsync(async (req, res) => {
+    // フォームから送信されたデータ(req.body.campground)を元に新しいモデルインスタンスを作成
+    const campground = new Campground(req.body.campground);
+    // データベースに保存
+    await campground.save();
+    // 保存後、作成されたキャンプ場の詳細ページにリダイレクト
+    res.redirect(`/campgrounds/${campground._id}`);
+}));
 
 // 詳細(Show)ページへのGETリクエスト
 // '/campgrounds/:id' の :id は、URLの一部を変数として受け取るためのプレースホルダーです
-app.get('/campgrounds/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const campground = await Campground.findById(id);
-        if (!campground) {
-            // IDの形式は正しいが、データが見つからなかった場合
-            return res.status(404).send('指定されたIDのキャンプ場は見つかりませんでした。');
-        }
-        res.render('campgrounds/show', { campground });
-    } catch (e) {
-        // IDの形式が不正などの理由でエラーになった場合
-        res.status(404).send('キャンプ場が見つかりませんでした。');
+app.get('/campgrounds/:id', wrapAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const campground = await Campground.findById(id);
+    if (!campground) {
+        // データが見つからなかった場合、カスタムエラーをnextに渡す
+        return next(new ExpressError('指定されたIDのキャンプ場は見つかりませんでした。', 404));
     }
-});
+    res.render('campgrounds/show', { campground });
+}));
 
 // 編集(Edit)フォームページへのGETリクエスト
-app.get('/campgrounds/:id/edit', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const campground = await Campground.findById(id);
-        if (!campground) {
-            return res.status(404).send('編集するキャンプ場が見つかりませんでした。');
-        }
-        // 'views/campgrounds/edit.ejs' をレンダリングします
-        res.render('campgrounds/edit', { campground });
-    } catch (e) {
-        res.status(404).send('キャンプ場が見つかりませんでした。');
+app.get('/campgrounds/:id/edit', wrapAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const campground = await Campground.findById(id);
+    if (!campground) {
+        return next(new ExpressError('編集するキャンプ場が見つかりませんでした。', 404));
     }
-});
+    // 'views/campgrounds/edit.ejs' をレンダリングします
+    res.render('campgrounds/edit', { campground });
+}));
 
 // 更新(Update)処理のPUTリクエスト
-app.put('/campgrounds/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        // findByIdAndUpdate(更新対象のid, 更新内容) でデータを検索して更新します
-        const campground = await Campground.findByIdAndUpdate(id, { ...req.body.campground });
-        // 更新後、詳細ページにリダイレクトします
-        res.redirect(`/campgrounds/${campground._id}`);
-    } catch (e) {
-        res.status(500).send('キャンプ場の更新に失敗しました。');
-    }
-});
+// MongooseのバリデーションエラーなどはwrapAsyncが自動でキャッチするため、このルートハンドラ内でnextは不要です。
+app.put('/campgrounds/:id', wrapAsync(async (req, res) => {
+    const { id } = req.params;
+    // findByIdAndUpdate(更新対象のid, 更新内容) でデータを検索して更新します
+    const campground = await Campground.findByIdAndUpdate(id, { ...req.body.campground });
+    // 更新後、詳細ページにリダイレクトします
+    res.redirect(`/campgrounds/${campground._id}`);
+}));
 
 // 削除(Delete/Destroy)処理のDELETEリクエスト
-app.delete('/campgrounds/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        // findByIdAndDelete(削除対象のid) でデータを検索して削除します
-        await Campground.findByIdAndDelete(id);
-        // 削除後、一覧ページにリダイレクトします
-        res.redirect('/campgrounds');
-    } catch (e) {
-        res.status(500).send('キャンプ場の削除に失敗しました。');
-    }
+app.delete('/campgrounds/:id', wrapAsync(async (req, res) => {
+    const { id } = req.params;
+    // findByIdAndDelete(削除対象のid) でデータを検索して削除します
+    await Campground.findByIdAndDelete(id);
+    // 削除後、一覧ページにリダイレクトします
+    res.redirect('/campgrounds');
+}));
+
+// どのルートにも一致しなかった場合のエラーハンドリング
+app.use((req, res, next) => {
+    next(new ExpressError('ページが見つかりませんでした。', 404));
+});
+
+// 中央集権的なエラーハンドリングミドルウェア
+// next(err) が呼ばれると、このミドルウェアが実行されます
+app.use((err, req, res, next) => {
+    // デフォルトのステータスコードとメッセージを設定
+    const { statusCode = 500, message = '問題が起きました' } = err;
+    res.status(statusCode).send(message);
 });
 
 // --- サーバー起動 ---

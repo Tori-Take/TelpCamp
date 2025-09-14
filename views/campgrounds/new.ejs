@@ -1,38 +1,70 @@
+<!-- 共通のレイアウトファイルを読み込みます -->
 <% layout('layouts/boilerplate') %>
 
+    <!-- Bootstrapのグリッドシステムを開始します -->
     <div class="row">
-        <h1 class="text-center">新しいキャンプ場を登録</h1>
+        <h1 class="text-center">キャンプ場の新規登録</h1>
+        <!-- 画面を12分割したうちの6カラム分の幅で、中央に配置します -->
         <div class="col-6 offset-3">
-            <form action="/campgrounds" method="POST">
+            <!-- novalidate: ブラウザ標準のバリデーションを無効化 -->
+            <!-- needs-validation: Bootstrapのバリデーションを適用するためのクラス -->
+            <form action="/campgrounds" method="POST" novalidate class="needs-validation">
+                <!-- 下方向にマージン(余白)を追加します -->
                 <div class="mb-3">
                     <label class="form-label" for="name">キャンプ場名</label>
-                    <input class="form-control" type="text" id="name" name="campground[name]">
+                    <!-- form-control: Bootstrapのフォーム入力欄スタイル -->
+                    <!-- required: この入力が必須であることを示す -->
+                    <input class="form-control" type="text" name="campground[name]" id="name" required>
+                    <!-- バリデーションが成功した場合に表示されるメッセージ -->
+                    <div class="valid-feedback">
+                        OK!
+                    </div>
+                    <!-- バリデーションが失敗した場合に表示されるメッセージ -->
+                    <div class="invalid-feedback">
+                        タイトルを入力してください。
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="location">場所</label>
-                    <input class="form-control" type="text" id="location" name="campground[location]">
+                    <input class="form-control" type="text" name="campground[location]" id="location" required>
+                    <div class="invalid-feedback">
+                        場所を入力してください。
+                    </div>
                 </div>
+                <!-- 画像URLの入力欄を追加 -->
                 <div class="mb-3">
                     <label class="form-label" for="image">画像URL</label>
-                    <input class="form-control" type="text" id="image" name="campground[image]">
+                    <input class="form-control" type="text" name="campground[image]" id="image" required>
+                    <div class="invalid-feedback">
+                        画像URLを入力してください。
+                    </div>
                 </div>
+                <!-- 価格の入力欄を追加 -->
                 <div class="mb-3">
                     <label class="form-label" for="price">価格</label>
                     <div class="input-group">
                         <span class="input-group-text">¥</span>
-                        <input type="number" id="price" class="form-control" placeholder="0" name="campground[price]"
-                            aria-label="価格">
+                        <input type="number" class="form-control" id="price" placeholder="0" name="campground[price]"
+                            required min="0">
                         <span class="input-group-text">/泊</span>
                     </div>
+                    <div class="invalid-feedback">
+                        価格を0以上の半角数字で入力してください。
+                    </div>
                 </div>
+                <!-- 説明の入力欄を追加 -->
                 <div class="mb-3">
                     <label class="form-label" for="description">説明</label>
-                    <textarea class="form-control" id="description" name="campground[description]" rows="3"></textarea>
+                    <textarea class="form-control" id="description" name="campground[description]" rows="3"
+                        required></textarea>
+                    <div class="invalid-feedback">
+                        説明を入力してください。
+                    </div>
                 </div>
                 <div class="mb-3">
                     <button class="btn btn-success">登録する</button>
                 </div>
             </form>
-            <a href="/campgrounds">一覧へ戻る</a>
+            <a href="/campgrounds">一覧に戻る</a>
         </div>
     </div>

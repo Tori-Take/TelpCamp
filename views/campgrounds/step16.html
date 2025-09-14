@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 16: クライアントサイドバリデーション</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 16: クライアントサイドバリデーションの実装</h2>
+        <p>
+            今回は、キャンプ場登録フォーム（<code>new.ejs</code>）に、Bootstrapを利用したクライアントサイドバリデーションを実装しました。
+        </p>
+        <p>
+            クライアントサイドバリデーションは、ユーザーが入力したデータをサーバーに送信する前にブラウザ側でチェックする仕組みです。これにより、必須項目が空欄のまま送信されるのを防ぎ、ユーザーに即座にフィードバックを返すことができます。結果として、不要な通信を減らし、ユーザー体験（UX）を大きく向上させることができます。
+        </p>
+
+        <h3>実装1: フォームのHTML修正 (`new.ejs`)</h3>
+        <p>
+            まず、Bootstrapのバリデーションが機能するように、フォームのHTMLを修正しました。
+        </p>
+        <pre><code class="language-html">&lt;!-- 共通のレイアウトファイルを読み込みます --&gt;
+&lt;% layout('layouts/boilerplate') %&gt;
+
+&lt;!-- Bootstrapのグリッドシステムを開始します --&gt;
+&lt;div class="row"&gt;
+    &lt;h1 class="text-center"&gt;キャンプ場の新規登録&lt;/h1&gt;
+    &lt;!-- 画面を12分割したうちの6カラム分の幅で、中央に配置します --&gt;
+    &lt;div class="col-6 offset-3"&gt;
+        &lt;!-- novalidate: ブラウザ標準のバリデーションを無効化 --&gt;
+        &lt;!-- needs-validation: Bootstrapのバリデーションを適用するためのクラス --&gt;
+        &lt;form action="/campgrounds" method="POST" novalidate class="needs-validation"&gt;
+            &lt;!-- 下方向にマージン(余白)を追加します --&gt;
+            &lt;div class="mb-3"&gt;
+                &lt;label class="form-label" for="title"&gt;タイトル&lt;/label&gt;
+                &lt;!-- form-control: Bootstrapのフォーム入力欄スタイル --&gt;
+                &lt;!-- required: この入力が必須であることを示す --&gt;
+                &lt;input class="form-control" type="text" name="campground[title]" id="title" required&gt;
+                &lt;!-- バリデーションが成功した場合に表示されるメッセージ --&gt;
+                &lt;div class="valid-feedback"&gt;
+                    OK!
+                &lt;/div&gt;
+                &lt;!-- バリデーションが失敗した場合に表示されるメッセージ --&gt;
+                &lt;div class="invalid-feedback"&gt;
+                    タイトルを入力してください。
+                &lt;/div&gt;
+            &lt;/div&gt;
+            &lt;!-- ... 他の入力項目も同様に required と invalid-feedback を追加 ... --&gt;
+            &lt;div class="mb-3"&gt;
+                &lt;button class="btn btn-success"&gt;登録する&lt;/button&gt;
+            &lt;/div&gt;
+        &lt;/form&gt;
+        &lt;a href="/campgrounds"&gt;一覧に戻る&lt;/a&gt;
+    &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+        <h4>主な変更点:</h4>
+        <ul>
+            <li><strong><code>&lt;form&gt;</code>タグ</strong>:
+                <code>novalidate</code>属性でブラウザ標準のポップアップを無効化し、<code>class="needs-validation"</code>でBootstrapのバリデーション対象であることを示しました。
+            </li>
+            <li><strong><code>&lt;input&gt;</code>タグ</strong>: <code>required</code>属性を追加し、この項目が必須であることをブラウザに伝えました。</li>
+            <li><strong><code>&lt;div class="invalid-feedback"&gt;</code></strong>: 入力が無効だった場合に表示するエラーメッセージを各項目に用意しました。
+            </li>
+        </ul>
+
+        <h3>実装2: バリデーションを有効にするJavaScript (`boilerplate.ejs`)</h3>
+        <p>
+            次に、フォーム送信時にバリデーションを実行するためのJavaScriptを、共通レイアウトファイルである<code>boilerplate.ejs</code>に追加しました。これにより、このレイアウトを使用するすべてのページでバリデーションが有効になります。
+        </p>
+        <pre><code class="language-javascript">// Bootstrapのフォームバリデーションを有効にするためのスクリプト
+(() => {
+    'use strict' // 厳格モードを有効にし、コードの品質を高める
+
+    // 'needs-validation'クラスを持つすべてのフォームを取得する
+    const forms = document.querySelectorAll('.needs-validation')
+
+    // 取得した各フォームに対して処理を行う
+    Array.from(forms).forEach(form => {
+        // 'submit'イベント（フォーム送信時）を監視する
+        form.addEventListener('submit', event => {
+            // form.checkValidity()でHTMLのバリデーションルール（例: required）をチェック
+            // もしルール違反があれば、if文の中が実行される
+            if (!form.checkValidity()) {
+                // event.preventDefault()でフォームの送信を中止する
+                event.preventDefault()
+                // event.stopPropagation()でイベントの伝播を停止する
+                event.stopPropagation()
+            }
+            // フォームに'was-validated'クラスを追加する
+            // これにより、Bootstrapがバリデーション結果（成功/失敗）に応じたスタイルを適用する
+            form.classList.add('was-validated')
+        }, false)
+    })
+})()</code></pre>
+        <h4>コードの役割:</h4>
+        <p>
+            このスクリプトは、<code>.needs-validation</code>クラスを持つフォームが送信される直前に<code>checkValidity()</code>メソッドを実行します。もし入力内容が<code>required</code>などのルールに違反していた場合、<code>preventDefault()</code>でフォームの送信を中止し、<code>.was-validated</code>クラスをフォームに追加してエラーメッセージを表示します。
+        </p>
+
+        <div class="concept">
+            <h4>💡 クライアントサイド vs サーバーサイド</h4>
+            <p>
+                クライアントサイドバリデーションはユーザー体験を向上させるための素晴らしい機能ですが、これはあくまで「第一の防衛線」です。
+            </p>
+            <p>
+                悪意のあるユーザーは、ブラウザの開発者ツールを使ったり、JavaScriptを無効にしたりして、このチェックを簡単に回避できてしまいます。そのため、アプリケーションの安全性を確保するには、必ずサーバー側でもデータの正当性を検証する<strong>サーバーサイドバリデーション</strong>が不可欠です。次の講義で学ぶJoiは、このサーバーサイドバリデーションを実装するための強力なツールです。
+            </p>
+        </div>
+    </div>
+
+</body>
+
+</html>

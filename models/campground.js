@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
+const Review = require('./review');
 
 // キャンプ場のデータ構造を定義します
 const CampgroundSchema = new Schema({
@@ -21,6 +22,23 @@ const CampgroundSchema = new Schema({
     description: {
         type: String
         // required: true を付けないので、この項目は任意になります
+    },
+    reviews: [
+        {
+            type: Schema.Types.ObjectId,
+            ref: 'Review'
+        }
+    ]
+});
+
+// Campgroundが削除されたら、関連するReviewも削除するミドルウェア
+CampgroundSchema.post('findOneAndDelete', async function (doc) {
+    if (doc) {
+        await Review.deleteMany({
+            _id: {
+                $in: doc.reviews
+            }
+        });
     }
 });
 

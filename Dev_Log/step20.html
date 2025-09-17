@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 20: レビュー投稿とバリデーション</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 20: レビュー投稿フォームの作成とバリデーション実装</h2>
+        <p>
+            前回までのモデル設計に続き、今回はユーザーが実際にレビューを投稿するためのUI（フォーム）と、そのデータを安全に受け取るためのロジックを実装します。
+            ここでも、これまでの学習で身につけたフォーム作成、ルーティング、そしてクライアントサイド・サーバーサイド両面からのバリデーションの知識を総動員します。
+        </p>
+
+        <h3>学習の目的</h3>
+        <ul>
+            <li>既存のページ（詳細ページ）に、新しい機能（レビュー投稿）のフォームを追加する方法を実践する。</li>
+            <li>ネストされたリソース（キャンプ場に属するレビュー）を処理するための<code>POST</code>ルートを作成する方法を学ぶ。</li>
+            <li>新しい<code>Review</code>ドキュメントを作成し、親である<code>Campground</code>ドキュメントと正しく関連付けるロジックを実装する。</li>
+            <li>レビュー投稿フォームに、クライアントサイドとサーバーサイドの両方のバリデーションを適用し、アプリケーションの堅牢性を高める。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+        <p>
+            キャンプ場の詳細ページにレビュー投稿フォームを設置し、投稿されたデータを検証した上でデータベースに保存する、という一連の流れを実装します。
+        </p>
+        <ol>
+            <li>
+                <h4>1. レビュー投稿フォームの追加 (<code>views/campgrounds/show.ejs</code>)</h4>
+                <p>
+                    まず、キャンプ場の詳細ページの下部に、レビューを入力・送信するためのフォームを追加します。このフォームには、Bootstrapを使ったクライアントサイドバリデーションも適用します。
+                </p>
+                <pre><code class="language-html">&lt;h2&gt;レビューを投稿する&lt;/h2&gt;
+&lt;form action="/campgrounds/&lt;%= campground._id %&gt;/reviews" method="POST" class="needs-validation" novalidate&gt;
+    &lt;div class="mb-3"&gt;
+        &lt;label class="form-label" for="rating"&gt;評価&lt;/label&gt;
+        &lt;input class="form-range" type="range" min="1" max="5" name="review[rating]" id="rating"&gt;
+    &lt;/div&gt;
+    &lt;div class="mb-3"&gt;
+        &lt;label class="form-label" for="body"&gt;コメント&lt;/label&gt;
+        &lt;textarea class="form-control" name="review[body]" id="body" cols="30" rows="3" required&gt;&lt;/textarea&gt;
+        &lt;div class="invalid-feedback"&gt;
+            コメントを入力してください。
+        &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;button class="btn btn-success"&gt;投稿&lt;/button&gt;
+&lt;/form&gt;</code></pre>
+                <div class="concept">
+                    <h4>💡 ネストされたリソースのURL設計</h4>
+                    <p>
+                        フォームの<code>action</code>属性を<code>/campgrounds/&lt;%= campground._id %&gt;/reviews</code>と設定しました。
+                        これは「特定のキャンプ場（<code>/campgrounds/:id</code>）に属する、レビュー（<code>/reviews</code>）というリソースを作成する」という意図をURLで明確に表現する、RESTfulな設計の良い実践例です。
+                    </p>
+                </div>
+            </li>
+            <li>
+                <h4>2. レビュー作成ルートの実装 (<code>index.js</code>)</h4>
+                <p>
+                    フォームから送信されたデータを受け取り、データベースに保存するための<code>POST</code>ルートを<code>index.js</code>に追加します。
+                </p>
+                <pre><code class="language-javascript">// レビュー作成処理のPOSTリクエスト
+app.post('/campgrounds/:id/reviews', validateReview, wrapAsync(async (req, res) => {
+    // 1. 対象のキャンプ場を検索
+    const campground = await Campground.findById(req.params.id);
+    // 2. フォームデータで新しいレビューインスタンスを作成
+    const review = new Review(req.body.review);
+    // 3. キャンプ場のreviews配列に新しいレビューを追加
+    campground.reviews.push(review);
+    // 4. 両方の変更をデータベースに保存
+    await review.save();
+    await campground.save();
+    // 5. 元のキャンプ場詳細ページにリダイレクト
+    res.redirect(`/campgrounds/${campground._id}`);
+}));</code></pre>
+                <div class="concept">
+                    <h4>💡 <code>farmstand</code>プロジェクトの知識の応用</h4>
+                    <p>
+                        このロジックは、<code>farmstand</code>プロジェクトで「農場に商品を追加する」処理と全く同じです。
+                        親ドキュメント（<code>Campground</code>）と子ドキュメント（<code>Review</code>）の両方をインスタンス化し、互いを関連付けた後、両方を<code>save()</code>しています。
+                        一度学んだパターンを、異なる機能で再利用できる良い例です。
+                    </p>
+                </div>
+            </li>
+            <li>
+                <h4>3. レビューのサーバーサイドバリデーション</h4>
+                <p>
+                    最後に、クライアント側のチェックを回避された場合に備え、サーバー側でも<code>joi</code>を使って厳密なデータ検証を行います。
+                </p>
+                <p><b><code>schemas.js</code></b></p>
+                <pre><code class="language-javascript">module.exports.reviewSchema = Joi.object({
+    review: Joi.object({
+        rating: Joi.number().required().min(1).max(5),
+        body: Joi.string().required()
+    }).required()
+});</code></pre>
+                <p><b><code>index.js</code></b></p>
+                <pre><code class="language-javascript">// バリデーションミドルウェア
+const validateReview = (req, res, next) => {
+    const { error } = reviewSchema.validate(req.body);
+    if (error) {
+        const msg = error.details.map(el => el.message).join(',');
+        throw new ExpressError(msg, 400);
+    } else {
+        next();
+    }
+}
+
+// ルートにミドルウェアを適用
+app.post('/campgrounds/:id/reviews', validateReview, wrapAsync(async (req, res) => { ... }));</code></pre>
+                <p>
+                    キャンプ場のバリデーションと同様に、レビュー用のスキーマとミドルウェアを作成し、それを<code>POST</code>ルートに適用しました。
+                    これにより、不正なデータがデータベースに保存されるのを防ぎ、アプリケーションの信頼性を高めています。
+                </p>
+            </li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

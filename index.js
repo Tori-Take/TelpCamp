@@ -5,11 +5,13 @@ const path = require('path');
 const mongoose = require('mongoose');
 const methodOverride = require('method-override');
 const ejsMate = require('ejs-mate');
+const { reviewSchema, campgroundSchema } = require('./schemas.js'); // Joiスキーマを読み込み
 const ExpressError = require('./utils/ExpressError'); // 作成したExpressErrorを読み込み
 const wrapAsync = require('./utils/wrapAsync'); // 作成したwrapAsyncを読み込み
 
 // 作成したモデルを読み込みます
 const Campground = require('./models/campground');
+const Review = require('./models/review');
 
 // --- データベース接続 ---
 // データベース接続処理を非同期関数として定義します
@@ -40,6 +42,32 @@ app.use(express.urlencoded({ extended: true }));
 // method-overrideを使用するための設定
 app.use(methodOverride('_method'));
 
+// キャンプ場用のバリデーションミドルウェア
+const validateCampground = (req, res, next) => {
+    const { error } = campgroundSchema.validate(req.body);
+    if (error) {
+        // エラーの詳細をカンマ区切りの文字列に変換
+        const msg = error.details.map(el => el.message).join(',');
+        // ExpressErrorをスローし、エラーハンドラに処理を委ねる
+        throw new ExpressError(msg, 400);
+    } else {
+        next();
+    }
+}
+
+// レビュー用のバリデーションミドルウェア
+const validateReview = (req, res, next) => {
+    const { error } = reviewSchema.validate(req.body);
+    if (error) {
+        // エラーの詳細をカンマ区切りの文字列に変換
+        const msg = error.details.map(el => el.message).join(',');
+        // ExpressErrorをスローし、エラーハンドラに処理を委ねる
+        throw new ExpressError(msg, 400);
+    } else {
+        next();
+    }
+}
+
 // --- ルーティング ---
 // トップページ('/')へのGETリクエストが来たときの処理
 app.get('/', (req, res) => {
@@ -64,7 +92,7 @@ app.get('/campgrounds/new', (req, res) => {
 
 // 新規登録(Create)処理のPOSTリクエスト
 // MongooseのバリデーションエラーなどはwrapAsyncが自動でキャッチするため、このルートハンドラ内でnextは不要です。
-app.post('/campgrounds', wrapAsync(async (req, res) => {
+app.post('/campgrounds', validateCampground, wrapAsync(async (req, res) => {
     // フォームから送信されたデータ(req.body.campground)を元に新しいモデルインスタンスを作成
     const campground = new Campground(req.body.campground);
     // データベースに保存
@@ -98,7 +126,7 @@ app.get('/campgrounds/:id/edit', wrapAsync(async (req, res, next) => {
 
 // 更新(Update)処理のPUTリクエスト
 // MongooseのバリデーションエラーなどはwrapAsyncが自動でキャッチするため、このルートハンドラ内でnextは不要です。
-app.put('/campgrounds/:id', wrapAsync(async (req, res) => {
+app.put('/campgrounds/:id', validateCampground, wrapAsync(async (req, res) => {
     const { id } = req.params;
     // findByIdAndUpdate(更新対象のid, 更新内容) でデータを検索して更新します
     const campground = await Campground.findByIdAndUpdate(id, { ...req.body.campground });
@@ -113,6 +141,22 @@ app.delete('/campgrounds/:id', wrapAsync(async (req, res) => {
     await Campground.findByIdAndDelete(id);
     // 削除後、一覧ページにリダイレクトします
     res.redirect('/campgrounds');
+}));
+
+// --- レビュー用のルーティング ---
+
+// レビュー作成処理のPOSTリクエスト
+app.post('/campgrounds/:id/reviews', validateReview, wrapAsync(async (req, res) => {
+    // 対象のキャンプ場を検索
+    const campground = await Campground.findById(req.params.id);
+    // フォームから送信されたデータで新しいレビューインスタンスを作成
+    const review = new Review(req.body.review);
+    // キャンプ場のreviews配列に新しいレビューを追加
+    campground.reviews.push(review);
+    // 両方の変更をデータベースに保存
+    await review.save();
+    await campground.save();
+    res.redirect(`/campgrounds/${campground._id}`);
 }));
 
 // どのルートにも一致しなかった場合のエラーハンドリング

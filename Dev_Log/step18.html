@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TelpCamp 開発記録 - Step 18: レビュー機能のモデル設計</title>
+    <title>TelpCamp 開発記録 - Step 18: サーバーサイドバリデーション (Joi)</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -72,95 +72,95 @@
     <h1>TelpCamp プロジェクト作成の記録</h1>
 
     <div class="step">
-        <h2>Step 18: レビュー機能のモデル設計 - リレーションシップの応用</h2>
+        <h2>Step 18: サーバーサイドバリデーションの実装 (Joi)</h2>
         <p>
-            いよいよ、このアプリケーションの核となる「レビュー機能」の実装に着手します。
-            今回は、<code>farmstand</code>プロジェクトで学んだリレーションシップの知識を応用し、レビュー機能の土台となるモデルとスキーマを設計・実装します。
+            前回までのクライアントサイドバリデーションは、ユーザー体験を向上させるための「第一の防衛線」でした。しかし、このチェックは簡単に回避できてしまいます。
+            今回は、アプリケーションの堅牢性とデータの整合性を確保するための「第二の、そして最も重要な防衛線」である<strong>サーバーサイドバリデーション</strong>を、キャンプ場の登録・更新機能に実装します。
+        </p>
+        <p>
+            この実装には、JavaScriptのオブジェクトスキーマを検証するための強力なライブラリである<code>joi</code>を使用します。
         </p>
 
         <h3>学習の目的</h3>
         <ul>
-            <li>新しい機能（レビュー）のための新しいMongooseモデルを作成する方法を実践する。</li>
-            <li>キャンプ場（親）とレビュー（子）の間に「1対多」のリレーションシップを構築する。</li>
-            <li>Mongooseミドルウェア（<code>post</code>フック）を使い、親ドキュメントが削除されたときに関連する子ドキュメントも自動的に削除する「カスケード削除」を実装する。</li>
+            <li>クライアントサイドバリデーションだけでは不十分な理由を理解する。</li>
+            <li><code>joi</code>ライブラリを使い、データの検証ルール（スキーマ）を定義する方法を学ぶ。</li>
+            <li>Expressのミドルウェアとしてバリデーションロジックを実装し、特定のルートに適用する方法を習得する。</li>
+            <li>バリデーションエラーが発生した場合に、適切なエラーメッセージとステータスコードを返す方法を実践する。</li>
         </ul>
     </div>
 
     <div class="step">
         <h2>実装の解説</h2>
         <p>
-            スキーマ設計として、キャンプ場とレビューは「1対多」の関係になります。一つのキャンプ場には、複数のレビューが紐付きます。
-            今回は、<code>Campground</code>モデルが<code>Review</code>モデルのIDを配列として保持する「親から子への参照（Parent-Referencing）」パターンを採用します。
+            キャンプ場の新規登録(Create)と更新(Update)の両方のルートで、データがデータベースに保存される前に、その内容が正しい形式であるかを厳密にチェックする仕組みを導入します。
         </p>
         <ol>
             <li>
-                <h4>1. レビューモデルの新規作成 (<code>models/review.js</code>)</h4>
+                <h4>1. <code>joi</code>のインストール</h4>
                 <p>
-                    まず、レビューのデータ構造を定義するための、新しいスキーマとモデルを作成します。レビュー本文（<code>body</code>）と評価（<code>rating</code>）の2つのフィールドを持つシンプルな構成です。
+                    まず、プロジェクトに<code>joi</code>パッケージをインストールします。
                 </p>
-                <pre><code class="language-javascript">const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
-
-const reviewSchema = new Schema({
-    body: String,
-    rating: Number
-});
-
-module.exports = mongoose.model('Review', reviewSchema);</code></pre>
+                <pre><code class="language-bash">npm install joi</code></pre>
             </li>
             <li>
-                <h4>2. キャンプ場モデルの修正 (<code>models/campground.js</code>)</h4>
+                <h4>2. バリデーションスキーマの作成 (<code>schemas.js</code>)</h4>
                 <p>
-                    次に、既存の<code>Campground</code>モデルを修正し、レビューとの関連付けと、データの整合性を保つための重要な仕組みを追加します。
+                    次に、どのようなデータを受け入れるかの「ルールブック」となるバリデーションスキーマを定義します。プロジェクトのルートに<code>schemas.js</code>という新しいファイルを作成し、キャンプ場用のスキーマを記述します。
                 </p>
+                <pre><code class="language-javascript">const Joi = require('joi');
 
-                <h5>リレーションシップの追加</h5>
-                <p>
-                    <code>CampgroundSchema</code>に、レビューのIDを格納するための<code>reviews</code>配列を追加します。
-                </p>
-                <pre><code class="language-javascript">const CampgroundSchema = new Schema({
-    // ... 他のフィールド
-    reviews: [
-        {
-            type: Schema.Types.ObjectId,
-            ref: 'Review' // 'Review'モデルを参照することをMongooseに伝える
-        }
-    ]
+module.exports.campgroundSchema = Joi.object({
+    campground: Joi.object({
+        name: Joi.string().required(),
+        location: Joi.string().required(),
+        image: Joi.string().required(),
+        price: Joi.number().required().min(0),
+        description: Joi.string().required()
+    }).required()
 });</code></pre>
                 <div class="concept">
-                    <h4>💡 親から子への参照 (Parent-Referencing)</h4>
+                    <h4>💡 Joiスキーマの読み解き方</h4>
                     <p>
-                        この設計は、親ドキュメント（<code>Campground</code>）が、子ドキュメント（<code>Review</code>）のIDのリストを持つパターンです。
-                        <code>ref: 'Review'</code>と指定することで、Mongooseの<code>populate()</code>メソッドを使って、このIDのリストを実際のレビューデータに簡単に置き換えることができます。
+                        このコードは「受け取るデータ(<code>req.body</code>)は、<code>campground</code>というキーを持つオブジェクトでなければならない。そして、その<code>campground</code>オブジェクトは、以下のルールに従うキーを持つ必要がある」と定義しています。
                     </p>
+                    <ul>
+                        <li><code>name</code>: 必須(<code>required</code>)の文字列(<code>string</code>)でなければならない。</li>
+                        <li><code>price</code>: 必須の数値(<code>number</code>)で、かつ0以上(<code>min(0)</code>)でなければならない。</li>
+                    </ul>
                 </div>
-
-                <h5>カスケード削除の実装</h5>
+            </li>
+            <li>
+                <h4>3. バリデーションミドルウェアの作成と適用 (<code>index.js</code>)</h4>
                 <p>
-                    キャンプ場が削除された場合、それに紐づくレビューもデータベースから削除されなければ、不要なデータ（ゴミデータ）が残ってしまいます。
-                    この問題を解決するため、<code>farmstand</code>プロジェクトでも学んだMongooseミドルウェア（<code>post</code>フック）を使って、連鎖的な削除（カスケード削除）を実装します。
+                    作成したスキーマを使って、実際にリクエストのデータを検証するミドルウェアを<code>index.js</code>に作成し、それを新規登録(POST)と更新(PUT)のルートに適用します。
                 </p>
-                <pre><code class="language-javascript">// Campgroundが削除されたら、関連するReviewも削除するミドルウェア
-CampgroundSchema.post('findOneAndDelete', async function (doc) {
-    if (doc) {
-        await Review.deleteMany({
-            _id: {
-                $in: doc.reviews
-            }
-        });
+                <pre><code class="language-javascript">// Joiスキーマを読み込み
+const { campgroundSchema } = require('./schemas.js');
+
+// キャンプ場用のバリデーションミドルウェア
+const validateCampground = (req, res, next) => {
+    const { error } = campgroundSchema.validate(req.body);
+    if (error) {
+        const msg = error.details.map(el => el.message).join(',');
+        throw new ExpressError(msg, 400);
+    } else {
+        next();
     }
-});</code></pre>
+}
+
+// 新規登録(Create)ルートにミドルウェアを適用
+app.post('/campgrounds', validateCampground, wrapAsync(async (req, res) => { ... }));
+
+// 更新(Update)ルートにミドルウェアを適用
+app.put('/campgrounds/:id', validateCampground, wrapAsync(async (req, res) => { ... }));</code></pre>
                 <div class="concept">
-                    <h4>💡 エレガントな後処理: <code>post</code>ミドルウェア</h4>
+                    <h4>💡 ミドルウェアによる関心の分離</h4>
                     <p>
-                        このコードは、「<code>findOneAndDelete</code>（または<code>findByIdAndDelete</code>）という操作が完了した**後**に、この関数を自動で実行せよ」というMongooseへの予約です。
+                        バリデーションのロジックを<code>validateCampground</code>という独立したミドルウェアに切り出すことで、ルートハンドラは「データが正しい」という前提で、データベース操作などの本来の仕事に集中できます。
                     </p>
                     <p>
-                        関数の引数<code>doc</code>には、削除されたキャンプ場のドキュメントが自動的に渡されます。そのため、<code>doc.reviews</code>でそのキャンプ場が持っていたレビューIDの配列にアクセスできます。
-                        そして、<code>deleteMany</code>と<code>$in</code>演算子を使い、そのIDリストに合致するレビューを<code>reviews</code>コレクションから一括で削除しています。
-                    </p>
-                    <p>
-                        この方法により、ルートハンドラ側はキャンプ場を削除する処理に集中でき、関連データのクリーンアップはモデル自身が責任を持って行ってくれます。これは、コードの関心を分離し、メンテナンス性を高める非常に優れた設計パターンです。
+                        もしバリデーションに失敗した場合、ミドルウェアは<code>ExpressError</code>をスローします。このエラーは<code>wrapAsync</code>によってキャッチされ、最終的に中央エラーハンドラに渡されて、ユーザーにエラーメッセージが表示される流れになっています。
                     </p>
                 </div>
             </li>

@@ -105,7 +105,7 @@ app.post('/campgrounds', validateCampground, wrapAsync(async (req, res) => {
 // '/campgrounds/:id' の :id は、URLの一部を変数として受け取るためのプレースホルダーです
 app.get('/campgrounds/:id', wrapAsync(async (req, res, next) => {
     const { id } = req.params;
-    const campground = await Campground.findById(id);
+    const campground = await Campground.findById(id).populate('reviews');
     if (!campground) {
         // データが見つからなかった場合、カスタムエラーをnextに渡す
         return next(new ExpressError('指定されたIDのキャンプ場は見つかりませんでした。', 404));

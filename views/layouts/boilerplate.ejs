@@ -12,8 +12,9 @@
 <body class="d-flex flex-column vh-100">
     <%- include('../partials/navbar') %>
         <main class="container mt-5">
-            <!-- この部分に各ページのコンテンツが挿入されます -->
-            <%- body %>
+            <%- include('../partials/flash') %>
+                <!-- この部分に各ページのコンテンツが挿入されます -->
+                <%- body %>
         </main>
         <%- include('../partials/footer') %>
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"

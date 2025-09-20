@@ -6,6 +6,8 @@ const mongoose = require('mongoose');
 const methodOverride = require('method-override');
 const ejsMate = require('ejs-mate');
 const ExpressError = require('./utils/ExpressError'); // 作成したExpressErrorを読み込み
+const session = require('express-session');
+const flash = require('connect-flash');
 
 // ルーターを読み込みます
 const campgroundRoutes = require('./routes/campgrounds');
@@ -43,6 +45,30 @@ app.use(methodOverride('_method'));
 // publicディレクトリの静的ファイルを提供するための設定
 app.use(express.static(path.join(__dirname, 'public')));
 
+// --- セッションの設定 ---
+const sessionConfig = {
+    secret: 'mysecret', // セッションIDの署名に使用されるキー
+    resave: false, // セッションに変更がない場合でも再保存しない
+    saveUninitialized: true, // 未初期化のセッションを保存する
+    cookie: {
+        httpOnly: true, // JavaScriptからクッキーにアクセスできないようにする
+        // secure: true, // HTTPSでのみクッキーを送信する（本番環境用）
+        expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // クッキーの有効期限 (1週間)
+        maxAge: 1000 * 60 * 60 * 24 * 7
+    }
+};
+app.use(session(sessionConfig));
+
+// フラッシュメッセージ用のミドルウェア
+app.use(flash());
+
+// すべてのリクエストでフラッシュメッセージをビューで使えるようにするミドルウェア
+app.use((req, res, next) => {
+    res.locals.success = req.flash('success');
+    res.locals.error = req.flash('error');
+    next();
+});
+
 // --- ルーティング ---
 // ルーターを使用する
 app.use('/campgrounds', campgroundRoutes);
@@ -52,6 +78,16 @@ app.use('/campgrounds/:id/reviews', reviewRoutes);
 app.get('/', (req, res) => {
     // 'views/home.ejs' をレンダリングして表示します
     res.render('home');
+});
+
+// セッションの動作確認用テストルート
+app.get('/sessiontest', (req, res) => {
+    if (req.session.count) {
+        req.session.count++;
+    } else {
+        req.session.count = 1;
+    }
+    res.send(`このページへの訪問は${req.session.count}回目です。`);
 });
 
 // どのルートにも一致しなかった場合のエラーハンドリング

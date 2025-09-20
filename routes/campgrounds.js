@@ -31,6 +31,7 @@ router.get('/new', (req, res) => {
 router.post('/', validateCampground, wrapAsync(async (req, res) => {
     const campground = new Campground(req.body.campground);
     await campground.save();
+    req.flash('success', '新しいキャンプ場を作成しました。');
     res.redirect(`/campgrounds/${campground._id}`);
 }));
 
@@ -58,6 +59,7 @@ router.get('/:id/edit', wrapAsync(async (req, res, next) => {
 router.put('/:id', validateCampground, wrapAsync(async (req, res) => {
     const { id } = req.params;
     const campground = await Campground.findByIdAndUpdate(id, { ...req.body.campground });
+    req.flash('success', 'キャンプ場情報を更新しました。');
     res.redirect(`/campgrounds/${campground._id}`);
 }));
 
@@ -65,8 +67,8 @@ router.put('/:id', validateCampground, wrapAsync(async (req, res) => {
 router.delete('/:id', wrapAsync(async (req, res) => {
     const { id } = req.params;
     await Campground.findByIdAndDelete(id);
+    req.flash('success', 'キャンプ場情報を削除しました。');
     res.redirect('/campgrounds');
 }));
 
 module.exports = router;
-

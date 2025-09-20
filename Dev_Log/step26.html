@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 26: セッションの導入と設定</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #fef9e7;
+            border-left: 5px solid #f1c40f;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 26: セッションの導入と設定</h2>
+        <p>
+            今後の機能拡張（フラッシュメッセージ、ユーザー認証など）に備えて、セッション管理機能を追加しました。
+            セッションは、HTTPのステートレスな性質を補い、ユーザーごとの状態をサーバー側で維持するための仕組みです。
+        </p>
+
+        <h3>学習の目的</h3>
+        <ul>
+            <li><code>express-session</code>パッケージを使い、Expressアプリケーションにセッション機能を追加する方法を学ぶ。</li>
+            <li>セッションの基本的な設定項目（<code>secret</code>, <code>resave</code>, <code>saveUninitialized</code>,
+                <code>cookie</code>）の役割を理解する。</li>
+            <li>開発用のデフォルトストア（<code>MemoryStore</code>）の特性と、本番環境での注意点を理解する。</li>
+            <li><code>req.session</code>オブジェクトを使って、リクエスト間でデータを保持する基本的な方法を実践する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+        <p>
+            まず<code>npm install express-session</code>でパッケージをインストールし、<code>index.js</code>に設定を追加しました。
+        </p>
+        <h4>1. セッションミドルウェアの設定 (<code>index.js</code>)</h4>
+        <p>
+            すべてのルート処理の前にセッションミドルウェアが実行されるように、<code>app.use()</code>を使って設定します。
+        </p>
+        <pre><code class="language-javascript">// index.js
+const session = require('express-session');
+// ...
+
+const sessionConfig = {
+    secret: 'mysecret', // セッションIDの署名に使用されるキー
+    resave: false, // セッションに変更がない場合でも再保存しない
+    saveUninitialized: true, // 未初期化のセッションを保存する
+    cookie: {
+        httpOnly: true, // JavaScriptからクッキーにアクセスできないようにする
+        expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // クッキーの有効期限 (1週間)
+        maxAge: 1000 * 60 * 60 * 24 * 7
+    }
+};
+app.use(session(sessionConfig));
+
+// ... ルーティング ...
+</code></pre>
+        <div class="concept">
+            <h4>💡 セッションの仕組み</h4>
+            <p>
+                このミドルウェアが有効になると、各リクエストに対して以下の処理が自動的に行われます。
+            </p>
+            <ol>
+                <li>ブラウザから送られてきたクッキーにセッションIDが含まれているか確認します。</li>
+                <li>セッションIDがあれば、サーバーのセッションストア（今回はメモリ）から対応するセッションデータを読み込み、<code>req.session</code>オブジェクトに復元します。</li>
+                <li>セッションIDがなければ、新しいセッションIDを生成し、レスポンスのクッキーに含めてブラウザに送ります。</li>
+                <li>ルートハンドラ内で<code>req.session</code>オブジェクトに加えられた変更は、レスポンスが送られる際に自動的にセッションストアに保存されます。</li>
+            </ol>
+            <p>
+                <code>secret</code>は、このセッションIDクッキーが改ざんされていないことを保証するための署名キーです。
+            </p>
+        </div>
+    </div>
+
+    <div class="step">
+        <h4>2. 動作確認用のテストルート</h4>
+        <p>
+            セッションが正しく機能しているかを確認するため、簡単なカウンター機能を持つテストルートを追加しました。
+        </p>
+        <pre><code class="language-javascript">// index.js
+app.get('/sessiontest', (req, res) => {
+    if (req.session.count) {
+        req.session.count++;
+    } else {
+        req.session.count = 1;
+    }
+    res.send(`このページへの訪問は${req.session.count}回目です。`);
+});</code></pre>
+        <p>
+            このページにアクセスし、リロードするたびにカウンターが増えることで、サーバーがブラウザ（ユーザー）ごとの状態を記憶していることが確認できました。
+            これで、リダイレクトをまたいでメッセージを表示する「フラッシュメッセージ」などの機能を実装する準備が整いました。
+        </p>
+    </div>
+
+</body>
+
+</html>
+
+<!--
+[PROMPT_SUGGESTION]フラッシュメッセージを実装して、レビュー投稿後に「投稿しました！」と表示したい。[/PROMPT_SUGGESTION]
+[PROMPT_SUGGESTION]セッションの仕組みについて、もう少し詳しく教えて。[/PROMPT_SUGGESTION]

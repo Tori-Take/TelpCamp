@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 27: フラッシュメッセージの実装</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #eafaf1;
+            border-left: 5px solid #2ecc71;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 27: フラッシュメッセージの実装</h2>
+        <p>
+            ユーザーがキャンプ場の作成などの操作を行った後、リダイレクトを挟んで「作成しました」といったフィードバックメッセージを表示する「フラッシュメッセージ」機能を実装しました。
+            この機能はセッションを利用しており、一度表示されると消える一時的なメッセージです。
+        </p>
+
+        <h3>学習の目的</h3>
+        <ul>
+            <li><code>connect-flash</code>パッケージを使い、フラッシュメッセージを管理する方法を学ぶ。</li>
+            <li><code>req.flash('key', 'message')</code>でメッセージを設定し、<code>req.flash('key')</code>で取り出す仕組みを理解する。</li>
+            <li><code>res.locals</code>とカスタムミドルウェアを組み合わせ、すべてのテンプレートで共通の変数を使えるようにする方法を学ぶ。</li>
+            <li>EJSのパーシャル（部分テンプレート）機能を使い、UIコンポーネントを再利用可能な形で管理する方法を実践する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+        <p>
+            実装は、ミドルウェアの設定、ルートでのメッセージ設定、ビューでの表示という3段階で行いました。
+        </p>
+        <ol>
+            <li>
+                <h4>1. ミドルウェアの設定 (<code>index.js</code>)</h4>
+                <p>
+                    まず<code>npm install connect-flash</code>でパッケージをインストールし、<code>index.js</code>でミドルウェアを有効化しました。
+                    特に重要なのは、すべてのリクエストでフラッシュメッセージを変数としてビューに渡すためのカスタムミドルウェアです。
+                </p>
+                <pre><code class="language-javascript">// index.js
+const flash = require('connect-flash');
+// ...
+app.use(session(sessionConfig));
+app.use(flash()); // sessionミドルウェアの後に設定
+
+// すべてのリクエストでフラッシュメッセージをビューで使えるようにするミドルウェア
+app.use((req, res, next) => {
+    res.locals.success = req.flash('success');
+    res.locals.error = req.flash('error');
+    next();
+});</code></pre>
+                <div class="concept">
+                    <h4>💡 <code>res.locals</code>によるグローバル変数</h4>
+                    <p>
+                        <code>res.locals</code>は、そのリクエスト〜レスポンスのサイクル中だけ存在するオブジェクトです。ここに格納されたプロパティ（例:
+                        <code>res.locals.success</code>）は、レンダリングされるEJSテンプレート内でグローバル変数（例:
+                        <code>success</code>）のように直接アクセスできます。
+                        このミドルウェアのおかげで、どのテンプレートからでも<code>success</code>や<code>error</code>といった変数を参照できるようになります。
+                    </p>
+                </div>
+            </li>
+            <li>
+                <h4>2. ルートでのメッセージ設定 (<code>routes/campgrounds.js</code>)</h4>
+                <p>
+                    キャンプ場が正常に作成された後、リダイレクトする直前に<code>req.flash()</code>を使ってメッセージをセッションに保存します。
+                </p>
+                <pre><code class="language-javascript">// routes/campgrounds.js のCreateルート
+router.post('/', validateCampground, wrapAsync(async (req, res) => {
+    const campground = new Campground(req.body.campground);
+    await campground.save();
+    req.flash('success', '新しいキャンプ場を作成しました。'); // ここでメッセージを設定
+    res.redirect(`/campgrounds/${campground._id}`);
+}));</code></pre>
+            </li>
+            <li>
+                <h4>3. ビューでのメッセージ表示</h4>
+                <p>
+                    メッセージ表示部分を再利用可能なパーシャルファイル<code>views/partials/flash.ejs</code>として作成しました。
+                </p>
+                <pre><code class="language-html">&lt;!-- views/partials/flash.ejs --&gt;
+&lt;% if(success && success.length) { %&gt;
+    &lt;div class="alert alert-success alert-dismissible fade show" role="alert"&gt;
+        &lt;%= success %&gt;
+        &lt;button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"&gt;&lt;/button&gt;
+    &lt;/div&gt;
+&lt;% } %&gt;
+
+&lt;% if(error && error.length) { %&gt;
+    &lt;div class="alert alert-danger alert-dismissible fade show" role="alert"&gt;
+        &lt;%= error %&gt;
+        &lt;button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"&gt;&lt;/button&gt;
+    &lt;/div&gt;
+&lt;% } %&gt;</code></pre>
+                <p>
+                    そして、このパーシャルを共通レイアウトファイル<code>views/layouts/boilerplate.ejs</code>に組み込むことで、すべてのページでフラッシュメッセージが表示される準備が整いました。
+                </p>
+                <pre><code class="language-html">&lt;!-- views/layouts/boilerplate.ejs --&gt;
+&lt;main class="container mt-5"&gt;
+    &lt;%- include('../partials/flash') %&gt;
+    &lt;%- body %&gt;
+&lt;/main&gt;</code></pre>
+                <p>
+                    この構成により、メッセージが存在する場合のみ、Bootstrapのスタイルが適用されたアラートが表示されるようになりました。
+                </p>
+            </li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

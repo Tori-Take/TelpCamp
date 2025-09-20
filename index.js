@@ -40,6 +40,9 @@ app.use(express.urlencoded({ extended: true }));
 // method-overrideを使用するための設定
 app.use(methodOverride('_method'));
 
+// publicディレクトリの静的ファイルを提供するための設定
+app.use(express.static(path.join(__dirname, 'public')));
+
 // --- ルーティング ---
 // ルーターを使用する
 app.use('/campgrounds', campgroundRoutes);

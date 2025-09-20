@@ -40,7 +40,8 @@ router.get('/:id', wrapAsync(async (req, res, next) => {
     const { id } = req.params;
     const campground = await Campground.findById(id).populate('reviews');
     if (!campground) {
-        return next(new ExpressError('指定されたIDのキャンプ場は見つかりませんでした。', 404));
+        req.flash('error', '指定されたIDのキャンプ場は見つかりませんでした。');
+        return res.redirect('/campgrounds');
     }
     res.render('campgrounds/show', { campground });
 }));
@@ -50,7 +51,8 @@ router.get('/:id/edit', wrapAsync(async (req, res, next) => {
     const { id } = req.params;
     const campground = await Campground.findById(id);
     if (!campground) {
-        return next(new ExpressError('編集するキャンプ場が見つかりませんでした。', 404));
+        req.flash('error', '編集するキャンプ場が見つかりませんでした。');
+        return res.redirect('/campgrounds');
     }
     res.render('campgrounds/edit', { campground });
 }));

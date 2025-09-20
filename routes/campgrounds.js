@@ -1,0 +1,72 @@
+const express = require('express');
+const router = express.Router();
+const wrapAsync = require('../utils/wrapAsync');
+const ExpressError = require('../utils/ExpressError');
+const Campground = require('../models/campground');
+const { campgroundSchema } = require('../schemas.js');
+
+// キャンプ場用のバリデーションミドルウェア
+const validateCampground = (req, res, next) => {
+    const { error } = campgroundSchema.validate(req.body);
+    if (error) {
+        const msg = error.details.map(el => el.message).join(',');
+        throw new ExpressError(msg, 400);
+    } else {
+        next();
+    }
+}
+
+// Index
+router.get('/', wrapAsync(async (req, res) => {
+    const campgrounds = await Campground.find({});
+    res.render('campgrounds/index', { campgrounds });
+}));
+
+// New
+router.get('/new', (req, res) => {
+    res.render('campgrounds/new');
+});
+
+// Create
+router.post('/', validateCampground, wrapAsync(async (req, res) => {
+    const campground = new Campground(req.body.campground);
+    await campground.save();
+    res.redirect(`/campgrounds/${campground._id}`);
+}));
+
+// Show
+router.get('/:id', wrapAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const campground = await Campground.findById(id).populate('reviews');
+    if (!campground) {
+        return next(new ExpressError('指定されたIDのキャンプ場は見つかりませんでした。', 404));
+    }
+    res.render('campgrounds/show', { campground });
+}));
+
+// Edit
+router.get('/:id/edit', wrapAsync(async (req, res, next) => {
+    const { id } = req.params;
+    const campground = await Campground.findById(id);
+    if (!campground) {
+        return next(new ExpressError('編集するキャンプ場が見つかりませんでした。', 404));
+    }
+    res.render('campgrounds/edit', { campground });
+}));
+
+// Update
+router.put('/:id', validateCampground, wrapAsync(async (req, res) => {
+    const { id } = req.params;
+    const campground = await Campground.findByIdAndUpdate(id, { ...req.body.campground });
+    res.redirect(`/campgrounds/${campground._id}`);
+}));
+
+// Delete
+router.delete('/:id', wrapAsync(async (req, res) => {
+    const { id } = req.params;
+    await Campground.findByIdAndDelete(id);
+    res.redirect('/campgrounds');
+}));
+
+module.exports = router;
+

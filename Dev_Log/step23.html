@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 23: Mongooseミドルウェアによる関連データの削除</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #f5eef8;
+            border-left: 5px solid #8e44ad;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 23: Mongooseミドルウェアによる関連データの削除（カスケード削除）</h2>
+        <p>
+            現在の実装では、キャンプ場を削除しても、そのキャンプ場に紐づいていたレビューのデータはデータベースに残り続けてしまいます。これは「孤児データ（Orphan Data）」と呼ばれ、データの整合性を損なう原因となります。
+            今回は、キャンプ場が削除された際に、関連するすべてのレビューも自動的に削除される「カスケード削除」機能を実装しました。
+        </p>
+
+        <h3>学習の目的</h3>
+        <ul>
+            <li>Mongooseのミドルウェア（フック）の概念と使い方を理解する。</li>
+            <li><code>post('findOneAndDelete')</code>フックを使い、ドキュメント削除後の追加処理を実装する方法を学ぶ。</li>
+            <li>MongoDBの<code>$in</code>クエリオペレータを使い、配列内の複数の値に一致するドキュメントを効率的に操作する方法を学ぶ。</li>
+            <li>データ操作のロジックをルートハンドラからモデル層に移動させ、コードの関心事を分離するメリットを理解する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+        <p>
+            この機能は、ルートハンドラ（<code>index.js</code>）を修正するのではなく、<code>Campground</code>モデル自体にロジックを組み込むことで実現します。これにより、どこからキャンプ場が削除されても、このロジックが必ず適用されるようになります。
+        </p>
+        <h4>モデルの修正 (<code>models/campground.js</code>)</h4>
+        <p>
+            <code>campgroundSchema</code>に<code>post</code>ミドルウェアを追加します。これは、指定された処理（今回は<code>findOneAndDelete</code>）が完了した**後**に、特定の関数を自動実行する仕組みです。
+        </p>
+        <pre><code class="language-javascript">const mongoose = require('mongoose');
+const Review = require('./review'); // Reviewモデルを読み込む
+const Schema = mongoose.Schema;
+
+const campgroundSchema = new Schema({ /* ...スキーマ定義... */ });
+
+// findOneAndDeleteが実行された後に動作するミドルウェア
+campgroundSchema.post('findOneAndDelete', async function (doc) {
+    // docには削除されたCampgroundドキュメントが渡される
+    if (doc) {
+        // 削除されたキャンプ場にレビューが含まれていれば
+        if (doc.reviews.length) {
+            // Reviewモデルから、_idがdoc.reviews配列に含まれるものをすべて削除する
+            await Review.deleteMany({
+                _id: {
+                    $in: doc.reviews
+                }
+            });
+        }
+    }
+});
+
+module.exports = mongoose.model('Campground', campgroundSchema);</code></pre>
+        <div class="concept">
+            <h4>💡 Mongooseミドルウェアによるロジックのカプセル化</h4>
+            <p>
+                <code>campgroundSchema.post('findOneAndDelete', async function (doc) { ... })</code>が今回の実装の核心です。
+            </p>
+            <ol>
+                <li><strong>トリガー:</strong>
+                    ルートハンドラで<code>Campground.findByIdAndDelete(id)</code>が実行されると、Mongoose内部で<code>findOneAndDelete</code>クエリが発行されます。
+                </li>
+                <li><strong>フック発動:</strong>
+                    Mongooseは<code>findOneAndDelete</code>の完了を検知し、予約されていた<code>post</code>ミドルウェアを実行します。</li>
+                <li><strong>処理実行:</strong>
+                    ミドルウェアの引数<code>doc</code>には、削除されたキャンプ場のドキュメントが自動的に渡されます。この<code>doc</code>が持つレビューIDの配列
+                    (<code>doc.reviews</code>) を利用して、<code>Review.deleteMany()</code>を実行します。</li>
+                <li><strong><code>$in</code>オペレータ:</strong>
+                    <code>{ _id: { $in: doc.reviews } }</code>という条件は、「<code>_id</code>が<code>doc.reviews</code>配列に含まれるいずれかの値と一致する」すべてのレビューを選択します。これにより、関連するレビューを一括で削除できます。
+                </li>
+            </ol>
+            <p>
+                このアプローチの最大の利点は、関連データの削除という責任を<code>Campground</code>モデル自身が持つことです。ルートハンドラは「キャンプ場を削除する」という本来の役割に集中でき、コードがクリーンで再利用しやすくなります。
+            </p>
+        </div>
+    </div>
+
+</body>
+
+</html>

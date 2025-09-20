@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 22: レビューの削除機能実装</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #fffbe6;
+            border-left: 5px solid #f0ad4e;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 22: レビューの削除機能実装</h2>
+        <p>
+            レビューの投稿・表示機能に続き、投稿されたレビューを削除する機能を実装しました。
+            これにより、ユーザーは不要になったレビューを削除でき、アプリケーションのデータ管理能力が向上します。
+        </p>
+
+        <h3>学習の目的</h3>
+        <ul>
+            <li>関連付けられた2つのモデル（CampgroundとReview）のデータを整合性を保ちながら削除する方法を学ぶ。</li>
+            <li>MongoDBの<code>$pull</code>演算子を使い、配列フィールドから特定の要素を削除する方法を理解する。</li>
+            <li>RESTfulなルーティングに基づき、ネストされたリソース（キャンプ場に属するレビュー）の削除エンドポイントを設計・実装する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+        <p>
+            実装は、フロントエンド（ビュー）に削除ボタンを追加し、バックエンド（ルート）で削除処理を実装する2段階で行います。
+        </p>
+        <ol>
+            <li>
+                <h4>1. 削除ボタンの追加 (<code>views/campgrounds/show.ejs</code>)</h4>
+                <p>
+                    まず、キャンプ場詳細ページで各レビューを表示している部分に、削除用のフォームを追加します。
+                    どのキャンプ場のどのレビューを削除するのかをサーバーに伝えるため、URLに両方のIDを含めることが重要です。
+                </p>
+                <pre><code class="language-html">&lt;div class="card-body"&gt;
+    &lt;h5 class="card-title"&gt;評価: &lt;%= review.rating %&gt;&lt;/h5&gt;
+    &lt;p class="card-text"&gt;&lt;%= review.body %&gt;&lt;/p&gt;
+    &lt;!-- ↓ このフォームを追加 ↓ --&gt;
+    &lt;form action="/campgrounds/&lt;%= campground._id %&gt;/reviews/&lt;%= review._id %&gt;?_method=DELETE" method="POST"&gt;
+        &lt;button class="btn btn-sm btn-danger"&gt;削除&lt;/button&gt;
+    &lt;/form&gt;
+&lt;/div&gt;</code></pre>
+                <p>
+                    キャンプ場削除の時と同様に、<code>method-override</code>ライブラリを利用して、この<code>POST</code>リクエストを<code>DELETE</code>リクエストとして扱います。
+                </p>
+            </li>
+            <li>
+                <h4>2. 削除ルートの実装 (<code>index.js</code>)</h4>
+                <p>
+                    次に、上記のフォームから送信されたリクエストを処理するルートを<code>index.js</code>に追加します。
+                    この処理は、単にレビューを削除するだけでは不十分です。
+                </p>
+                <pre><code class="language-javascript">// レビュー削除処理のDELETEリクエスト
+app.delete('/campgrounds/:id/reviews/:reviewId', wrapAsync(async (req, res) => {
+    const { id, reviewId } = req.params;
+    // 1. Campgroundモデルのreviews配列から、該当するreviewIdを削除する
+    await Campground.findByIdAndUpdate(id, { $pull: { reviews: reviewId } });
+    // 2. Reviewモデルから、該当するレビュー本体を削除する
+    await Review.findByIdAndDelete(reviewId);
+    res.redirect(`/campgrounds/${id}`);
+}));</code></pre>
+                <div class="concept">
+                    <h4>💡 <code>$pull</code>演算子による関連データの削除</h4>
+                    <p>
+                        今回の実装の核心部分です。レビューを削除するには、2つの操作が必要です。
+                    </p>
+                    <ol>
+                        <li><strong>レビュー本体の削除:</strong>
+                            <code>Review.findByIdAndDelete(reviewId)</code>で、<code>reviews</code>コレクションからレビューのドキュメントそのものを削除します。
+                        </li>
+                        <li><strong>関連情報の削除:</strong>
+                            レビュー本体を消しても、<code>Campground</code>ドキュメントの<code>reviews</code>配列には、削除されたレビューのIDが「ゴミ」として残ってしまいます。これを放置すると、存在しないデータを参照しようとしてエラーの原因になります。<br>
+                            そこで、MongoDBの<code>$pull</code>演算子を使います。<code>Campground.findByIdAndUpdate(id, { $pull: { reviews: reviewId } })</code>は、「IDが<code>id</code>のキャンプ場の<code>reviews</code>配列から、<code>reviewId</code>と一致する値を取り除いて更新する」という操作を行います。
+                        </li>
+                    </ol>
+                    <p>
+                        この2つの操作を両方行うことで、データベースの整合性を保ったまま、レビューを完全に削除することができます。
+                    </p>
+                </div>
+            </li>
+        </ol>
+        <p>
+            これで、キャンプ場とレビューの基本的なCRUD（作成、読み取り、更新、削除）機能が一通り完成しました。
+        </p>
+    </div>
+
+</body>
+
+</html>

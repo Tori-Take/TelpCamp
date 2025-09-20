@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 21: レビューの表示機能実装</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 21: 投稿されたレビューの表示機能実装</h2>
+        <p>
+            前回(Step 20)でレビューの作成（投稿）機能が完成しました。今回はその投稿されたレビューを、キャンプ場の詳細ページに表示する機能を実装します。
+            これにより、ユーザーは自分の投稿が正しく保存されたことを確認でき、他のユーザーのレビューも閲覧できるようになります。
+        </p>
+
+        <h3>学習の目的</h3>
+        <ul>
+            <li>Mongooseの<code>populate()</code>メソッドを使い、関連するドキュメント（レビュー）のデータを取得する方法を学ぶ。</li>
+            <li>取得した関連データの配列をEJSテンプレート内でループ処理し、一覧表示する方法を実践する。</li>
+            <li>EJSの条件分岐を使い、レビューが1件も投稿されていない場合にはレビューセクション自体を表示しない、といったUIの制御を行う。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+        <p>
+            実装は大きく分けて2つのステップで行います。まずサーバー側でキャンプ場データと一緒にレビューデータを取得し、次にビュー側でそのデータを画面に描画します。
+        </p>
+        <ol>
+            <li>
+                <h4>1. ルートハンドラの修正 (<code>index.js</code>)</h4>
+                <p>
+                    キャンプ場の詳細ページを表示するルート (<code>GET /campgrounds/:id</code>) を修正します。
+                    <code>Campground</code>モデルの<code>reviews</code>配列にはレビューのIDしか入っていないため、Mongooseの<code>populate()</code>メソッドを使って、そのIDを実際のレビューデータ（本文や評価など）に置き換える必要があります。
+                </p>
+                <pre><code class="language-javascript">// キャンプ場詳細ページのGETリクエスト
+app.get('/campgrounds/:id', wrapAsync(async (req, res) => {
+    // .populate('reviews') を追加して、関連するレビューをすべて取得します
+    const campground = await Campground.findById(req.params.id).populate('reviews');
+    res.render('campgrounds/show', { campground });
+}));</code></pre>
+                <div class="concept">
+                    <h4>💡 <code>populate()</code>によるデータ展開</h4>
+                    <p>
+                        <code>.populate('reviews')</code>という一文を追加するだけで、Mongooseは<code>Campground</code>スキーマの<code>reviews</code>フィールドが<code>ref: 'Review'</code>で定義されていることを理解し、配列内の各IDを使って<code>reviews</code>コレクションを検索し、対応するドキュメントに置き換えてくれます。
+                    </p>
+                    <p>
+                        これにより、ルートハンドラは複雑なデータベースクエリを書くことなく、必要なデータをまとめて取得できます。
+                    </p>
+                </div>
+            </li>
+            <li>
+                <h4>2. ビューの修正 (<code>views/campgrounds/show.ejs</code>)</h4>
+                <p>
+                    次に、ルートハンドラから渡された<code>campground</code>オブジェクトに含まれるレビュー情報を、詳細ページに表示します。
+                    レビュー投稿フォームの上あたりに、レビュー一覧を表示するコードを追加しました。
+                </p>
+                <pre><code class="language-html">&lt;!-- ... レビュー投稿フォームの上あたりに追加 ... --&gt;
+&lt;div class="col-6 offset-3 mt-3"&gt;
+    &lt;h3&gt;レビュー&lt;/h3&gt;
+    &lt;% for(let review of campground.reviews) { %&gt;
+    &lt;div class="card mb-3"&gt;
+        &lt;div class="card-body"&gt;
+            &lt;h5 class="card-title"&gt;評価: &lt;%= review.rating %&gt;&lt;/h5&gt;
+            &lt;p class="card-text"&gt;&lt;%= review.body %&gt;&lt;/p&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;% } %&gt;
+&lt;/div&gt;</code></pre>
+                <div class="concept">
+                    <h4>💡 EJSによる動的なコンテンツ生成</h4>
+                    <p>
+                        <code>populate</code>された<code>campground.reviews</code>は、レビューオブジェクトの配列になっています。
+                        EJSの<code>&lt;% for(let review of campground.reviews) { %&gt;</code>構文を使ってこの配列をループ処理し、各レビューの<code>rating</code>と<code>body</code>をBootstrapのCardコンポーネントを使って表示しています。
+                    </p>
+                    <p>
+                        さらに、このコード全体を<code>&lt;% if(campground.reviews.length) { %&gt; ... &lt;% } %&gt;</code>で囲むことで、レビューがまだ1件も投稿されていない場合には「レビュー」という見出し自体が表示されないようにし、より洗練されたUIを実現できます。
+                    </p>
+                </div>
+            </li>
+        </ol>
+        <p>
+            以上の実装により、レビューの投稿から表示までの一連の流れが完成し、アプリケーションのコア機能がより充実しました。
+        </p>
+    </div>
+
+</body>
+
+</html>

@@ -159,6 +159,17 @@ app.post('/campgrounds/:id/reviews', validateReview, wrapAsync(async (req, res) 
     res.redirect(`/campgrounds/${campground._id}`);
 }));
 
+// レビュー削除処理のDELETEリクエスト
+app.delete('/campgrounds/:id/reviews/:reviewId', wrapAsync(async (req, res) => {
+    const { id, reviewId } = req.params;
+    // 1. Campgroundモデルのreviews配列から、該当するreviewIdを$pullで削除する
+    await Campground.findByIdAndUpdate(id, { $pull: { reviews: reviewId } });
+    // 2. Reviewモデルから、該当するレビュー本体を削除する
+    await Review.findByIdAndDelete(reviewId);
+    // キャンプ場の詳細ページにリダイレクト
+    res.redirect(`/campgrounds/${id}`);
+}));
+
 // どのルートにも一致しなかった場合のエラーハンドリング
 app.use((req, res, next) => {
     next(new ExpressError('ページが見つかりませんでした。', 404));

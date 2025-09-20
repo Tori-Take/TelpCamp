@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp プロジェクト作成の記録 - コラム4: Mongooseミドルウェア（フック）を使いこなす</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #f5eef8;
+            border-left: 5px solid #8e44ad;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>コラム4: Mongooseミドルウェア（フック）を使いこなす</h2>
+        <p>
+            Step 23で、キャンプ場を削除すると関連するレビューも自動で削除される機能を実装しました。このエレガントな解決策の中心にあったのが「Mongooseミドルウェア（フック）」です。
+            この機能は非常に強力で、モデルの振る舞いを拡張し、コードをよりクリーンに保つために役立ちます。このコラムでは、Mongooseミドルウェアの基本から、今回の実装例、そして他の便利な使い方までを掘り下げていきます。
+        </p>
+
+        <h3>Mongooseミドルウェアとは？</h3>
+        <p>
+            Mongooseミドルウェアとは、特定の処理（ドキュメントの保存、検索、更新、削除など）が実行される「前（pre）」または「後（post）」に、自動的に割り込んで実行される関数のことです。「フック」とも呼ばれます。
+        </p>
+        <div class="concept">
+            <h4>💡 関心の分離 (Separation of Concerns)</h4>
+            <p>
+                ミドルウェアの最大の利点は、<strong>「関心の分離」</strong>を実現できることです。
+                例えば、「レビューを削除する」というロジックは、キャンプ場モデルの削除処理に密接に関連しています。このロジックをルートハンドラ（<code>index.js</code>）に書くのではなく、<code>Campground</code>モデル自身に持たせることで、データに関する処理がモデルファイルに集約されます。
+                これにより、ルートハンドラはHTTPリクエストとレスポンスの管理に集中でき、コード全体の見通しが良くなり、メンテナンス性も向上します。
+            </p>
+        </div>
+    </div>
+
+    <div class="step">
+        <h2>今回の実装例: カスケード削除 <code>post('findOneAndDelete')</code></h2>
+        <p>
+            今回のプロジェクトで実装した、キャンプ場削除時の関連レビュー削除（カスケード削除）は、<code>post</code>ミドルウェアの典型的な使用例です。
+        </p>
+        <pre><code class="language-javascript">// models/campground.js
+campgroundSchema.post('findOneAndDelete', async function (doc) {
+    if (doc && doc.reviews.length) {
+        await Review.deleteMany({
+            _id: { $in: doc.reviews }
+        });
+    }
+});</code></pre>
+        <h4>処理の流れ</h4>
+        <ol>
+            <li><strong>トリガー:</strong> ルートハンドラで <code>await Campground.findByIdAndDelete(id)</code> が実行されます。</li>
+            <li><strong>Mongooseの内部動作:</strong> <code>findByIdAndDelete()</code> は内部的に <code>findOneAndDelete()</code>
+                クエリを実行します。</li>
+            <li><strong>フック発動:</strong> <code>findOneAndDelete</code> 処理が完了した**後**、予約されていた <code>post</code> フックが発動します。
+            </li>
+            <li><strong>処理実行:</strong> フック関数に、削除されたドキュメントが <code>doc</code> として渡されます。この <code>doc</code> を使って、関連するレビューを
+                <code>Review.deleteMany()</code> で一括削除します。</li>
+        </ol>
+        <p>
+            このように、<code>post</code>フックは「ある処理が終わった後の後始末」を定義するのに非常に適しています。
+        </p>
+    </div>
+
+    <div class="step">
+        <h2>その他の利用例</h2>
+        <p>ミドルウェアの用途はカスケード削除だけではありません。他にも様々な応用が可能です。</p>
+
+        <h4>利用例1: データ保存前の処理 - パスワードのハッシュ化 <code>pre('save')</code></h4>
+        <p>
+            ユーザー認証機能を実装する際、パスワードを平文のままデータベースに保存するのは非常に危険です。<code>pre('save')</code>ミドルウェアを使えば、ユーザーデータが保存される直前にパスワードを自動でハッシュ化できます。
+        </p>
+        <pre><code class="language-javascript">// models/user.js (例)
+const bcrypt = require('bcrypt');
+
+userSchema.pre('save', async function(next) {
+    // thisは保存される前のUserドキュメントを指す
+    // パスワードが変更されていない場合は何もしない
+    if (!this.isModified('password')) {
+        return next();
+    }
+    // パスワードをハッシュ化
+    this.password = await bcrypt.hash(this.password, 12);
+    next();
+});</code></pre>
+        <div class="concept">
+            <h4>💡 <code>pre</code>フックと<code>next()</code></h4>
+            <p>
+                <code>pre</code>フックは、本体の処理（この場合は<code>save</code>）の「前」に実行されます。
+                非同期処理が終わったら、必ず<code>next()</code>を呼び出して次の処理（本体の<code>save</code>処理）に進むようMongooseに伝える必要があります。これを忘れると、処理がそこで止まってしまいます。
+            </p>
+        </div>
+
+        <h4>利用例2: データ更新前の処理 - 更新日時の自動設定 <code>pre('findOneAndUpdate')</code></h4>
+        <p>
+            ドキュメントが更新された日時を記録したい場合、<code>pre('findOneAndUpdate')</code>フックが役立ちます。（※Mongooseの<code>timestamps</code>オプションでも同様のことが可能ですが、仕組みを理解する良い例です）
+        </p>
+        <pre><code class="language-javascript">// preフックをクエリミドルウェアとして使用
+schema.pre('findOneAndUpdate', function(next) {
+    // thisはクエリオブジェクトを指す
+    // 更新内容にupdatedAtフィールドを追加
+    this.set({ updatedAt: new Date() });
+    next();
+});</code></pre>
+        <div class="concept">
+            <h4>💡 ドキュメントミドルウェア vs クエリミドルウェア</h4>
+            <p>
+                Mongooseミドルウェアには2種類あります。
+            </p>
+            <ul>
+                <li><strong>ドキュメントミドルウェア:</strong> <code>save()</code>, <code>validate()</code>, <code>remove()</code>
+                    など、ドキュメントインスタンスに対して実行されます。<code>this</code>はドキュメントそのものを指します。（例1: パスワードハッシュ化）</li>
+                <li><strong>クエリミドルウェア:</strong> <code>find()</code>, <code>findOne()</code>,
+                    <code>findOneAndUpdate()</code> など、モデルのクエリに対して実行されます。<code>this</code>はクエリオブジェクトを指します。（例2: 更新日時設定）
+                </li>
+            </ul>
+            <p>
+                どちらのミドルウェアかによって<code>this</code>が指すものが異なるため、注意が必要です。
+            </p>
+        </div>
+        <p>
+            Mongooseミドルウェアは、モデルの振る舞いを定義し、ビジネスロジックを適切な場所にカプセル化するための強力なツールです。ぜひ色々な使い方を試してみてください。
+        </p>
+    </div>
+</body>
+
+</html>

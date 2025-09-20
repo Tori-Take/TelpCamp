@@ -1,28 +1,13 @@
 const mongoose = require('mongoose');
+const Review = require('./review'); // 追加: Reviewモデルを読み込む
 const Schema = mongoose.Schema;
-const Review = require('./review');
 
-// キャンプ場のデータ構造を定義します
-const CampgroundSchema = new Schema({
-    name: {
-        type: String,
-        required: true // 必須項目
-    },
-    location: {
-        type: String,
-        required: true // 必須項目
-    },
-    image: {
-        type: String,
-    },
-    price: {
-        type: Number,
-        required: true // 必須項目
-    },
-    description: {
-        type: String
-        // required: true を付けないので、この項目は任意になります
-    },
+const campgroundSchema = new Schema({
+    name: String,
+    image: String,
+    price: Number,
+    description: String,
+    location: String,
     reviews: [
         {
             type: Schema.Types.ObjectId,
@@ -31,16 +16,20 @@ const CampgroundSchema = new Schema({
     ]
 });
 
-// Campgroundが削除されたら、関連するReviewも削除するミドルウェア
-CampgroundSchema.post('findOneAndDelete', async function (doc) {
+// 追加: findOneAndDeleteが実行された後に動作するミドルウェア
+campgroundSchema.post('findOneAndDelete', async function (doc) {
+    // docには削除されたCampgroundドキュメントが渡される
     if (doc) {
-        await Review.deleteMany({
-            _id: {
-                $in: doc.reviews
-            }
-        });
+        // 削除されたキャンプ場にレビューが含まれていれば
+        if (doc.reviews.length) {
+            // Reviewモデルから、_idがdoc.reviews配列に含まれるものをすべて削除する
+            await Review.deleteMany({
+                _id: {
+                    $in: doc.reviews
+                }
+            });
+        }
     }
 });
 
-// 定義したスキーマを元にモデルを作成し、エクスポートします
-module.exports = mongoose.model('Campground', CampgroundSchema);
+module.exports = mongoose.model('Campground', campgroundSchema);

@@ -4,6 +4,7 @@ const wrapAsync = require('../utils/wrapAsync');
 const ExpressError = require('../utils/ExpressError');
 const Campground = require('../models/campground');
 const { campgroundSchema } = require('../schemas.js');
+const { isLoggedIn } = require('../middleware');
 
 // キャンプ場用のバリデーションミドルウェア
 const validateCampground = (req, res, next) => {
@@ -23,12 +24,12 @@ router.get('/', wrapAsync(async (req, res) => {
 }));
 
 // New
-router.get('/new', (req, res) => {
+router.get('/new', isLoggedIn, (req, res) => {
     res.render('campgrounds/new');
 });
 
 // Create
-router.post('/', validateCampground, wrapAsync(async (req, res) => {
+router.post('/', isLoggedIn, validateCampground, wrapAsync(async (req, res) => {
     const campground = new Campground(req.body.campground);
     await campground.save();
     req.flash('success', '新しいキャンプ場を作成しました。');
@@ -47,7 +48,7 @@ router.get('/:id', wrapAsync(async (req, res, next) => {
 }));
 
 // Edit
-router.get('/:id/edit', wrapAsync(async (req, res, next) => {
+router.get('/:id/edit', isLoggedIn, wrapAsync(async (req, res, next) => {
     const { id } = req.params;
     const campground = await Campground.findById(id);
     if (!campground) {
@@ -58,7 +59,7 @@ router.get('/:id/edit', wrapAsync(async (req, res, next) => {
 }));
 
 // Update
-router.put('/:id', validateCampground, wrapAsync(async (req, res) => {
+router.put('/:id', isLoggedIn, validateCampground, wrapAsync(async (req, res) => {
     const { id } = req.params;
     const campground = await Campground.findByIdAndUpdate(id, { ...req.body.campground });
     req.flash('success', 'キャンプ場情報を更新しました。');
@@ -66,7 +67,7 @@ router.put('/:id', validateCampground, wrapAsync(async (req, res) => {
 }));
 
 // Delete
-router.delete('/:id', wrapAsync(async (req, res) => {
+router.delete('/:id', isLoggedIn, wrapAsync(async (req, res) => {
     const { id } = req.params;
     await Campground.findByIdAndDelete(id);
     req.flash('success', 'キャンプ場情報を削除しました。');

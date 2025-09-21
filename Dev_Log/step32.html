@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 32: アクセス制御（認可）の実装</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 32: アクセス制御（認可）の実装</h2>
+        <p>
+            認証機能の次のステップとして、特定の操作をログインしているユーザーのみに許可する「アクセス制御（認可）」を実装しました。これにより、ログインしていないユーザーがキャンプ場の登録や編集、削除などを行えないようにし、アプリケーションのセキュリティを向上させました。
+        </p>
+        <h3>学習の目的</h3>
+        <ul>
+            <li>認証（Authentication）と認可（Authorization）の違いを理解する。</li>
+            <li>Expressのミドルウェアを作成し、ルートに適用する方法を学ぶ。</li>
+            <li>Passportが提供する<code>req.isAuthenticated()</code>メソッドを使い、ユーザーのログイン状態をチェックする方法を習得する。</li>
+            <li>保護したいルートにミドルウェアを組み込み、アクセスを制限する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+        <p>
+            ログイン状態をチェックするミドルウェアを作成し、それを保護したいルートに適用するという流れで実装しました。
+        </p>
+        <h4>1. ログインチェックミドルウェアの作成 (<code>middleware.js</code>)</h4>
+        <p>
+            ユーザーがログインしているかどうかを判定する<code>isLoggedIn</code>というミドルウェアを新しく作成しました。このミドルウェアは、今後の拡張性も考慮して<code>middleware.js</code>という専用ファイルに記述しました。
+        </p>
+        <pre><code class="language-javascript">// middleware.js
+module.exports.isLoggedIn = (req, res, next) => {
+    // Passportが提供するisAuthenticated()でログイン状態をチェック
+    if (!req.isAuthenticated()) {
+        // ログインしていなければ、エラーメッセージをフラッシュに保存してログインページへリダイレクト
+        req.flash('error', 'この操作を行うにはログインしてください。');
+        return res.redirect('/login');
+    }
+    // ログインしていれば、次の処理（ルートハンドラなど）へ進む
+    next();
+}</code></pre>
+        <div class="concept">
+            <h4>💡 認証と認可</h4>
+            <p>
+                <strong>認証 (Authentication)</strong>は「あなたが誰であるか」を確認するプロセスです（例：ログイン）。
+                一方、<strong>認可
+                    (Authorization)</strong>は「あなたに何をする権限があるか」を決定するプロセスです。今回の<code>isLoggedIn</code>ミドルウェアは、ログインしているユーザーにのみ特定の操作を許可するため、「認可」の役割を担っています。
+            </p>
+        </div>
+
+        <h4>2. ルートへのミドルウェア適用</h4>
+        <p>
+            作成した<code>isLoggedIn</code>ミドルウェアを、保護が必要なキャンプ場とレビューのルートに適用しました。
+        </p>
+        <pre><code class="language-javascript">// routes/campgrounds.js
+const { isLoggedIn } = require('../middleware');
+
+// キャンプ場登録フォームの表示
+router.get('/new', isLoggedIn, (req, res) => { ... });
+
+// キャンプ場の作成
+router.post('/', isLoggedIn, validateCampground, wrapAsync(async (req, res) => { ... }));
+
+// ...編集、更新、削除ルートも同様に適用
+</code></pre>
+        <p>
+            これにより、ログインしていないユーザーがこれらのURLに直接アクセスしようとしても、ログインページにリダイレクトされるようになり、アプリケーションの安全性が確保されました。
+        </p>
+    </div>
+</body>
+
+</html>

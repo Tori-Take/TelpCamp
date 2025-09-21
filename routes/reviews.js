@@ -6,6 +6,7 @@ const ExpressError = require('../utils/ExpressError');
 const Campground = require('../models/campground');
 const Review = require('../models/review');
 const { reviewSchema } = require('../schemas.js');
+const { isLoggedIn } = require('../middleware');
 
 // レビュー用のバリデーションミドルウェア
 const validateReview = (req, res, next) => {
@@ -19,7 +20,7 @@ const validateReview = (req, res, next) => {
 }
 
 // Create Review
-router.post('/', validateReview, wrapAsync(async (req, res) => {
+router.post('/', isLoggedIn, validateReview, wrapAsync(async (req, res) => {
     const campground = await Campground.findById(req.params.id);
     const review = new Review(req.body.review);
     campground.reviews.push(review);
@@ -30,7 +31,7 @@ router.post('/', validateReview, wrapAsync(async (req, res) => {
 }));
 
 // Delete Review
-router.delete('/:reviewId', wrapAsync(async (req, res) => {
+router.delete('/:reviewId', isLoggedIn, wrapAsync(async (req, res) => {
     const { id, reviewId } = req.params;
     await Campground.findByIdAndUpdate(id, { $pull: { reviews: reviewId } });
     await Review.findByIdAndDelete(reviewId);

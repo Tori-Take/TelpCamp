@@ -8,10 +8,14 @@ const ejsMate = require('ejs-mate');
 const ExpressError = require('./utils/ExpressError'); // 作成したExpressErrorを読み込み
 const session = require('express-session');
 const flash = require('connect-flash');
+const passport = require('passport');
+const LocalStrategy = require('passport-local');
+const User = require('./models/user');
 
 // ルーターを読み込みます
 const campgroundRoutes = require('./routes/campgrounds');
 const reviewRoutes = require('./routes/reviews');
+const userRoutes = require('./routes/users');
 
 // --- データベース接続 ---
 // データベース接続処理を非同期関数として定義します
@@ -62,6 +66,18 @@ app.use(session(sessionConfig));
 // フラッシュメッセージ用のミドルウェア
 app.use(flash());
 
+// --- Passportの設定 ---
+// Passportを初期化し、セッションでログイン状態を維持するためのミドルウェア
+app.use(passport.initialize());
+app.use(passport.session()); // session()ミドルウェアの後に記述することが重要
+
+// Passportに、認証方法としてローカルストラテジーを使用し、その認証ロジックはUserモデルのauthenticateメソッドを使うよう指示
+passport.use(new LocalStrategy(User.authenticate()));
+
+// ユーザー情報をセッションに保存/セッションから復元するための設定
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());
+
 // すべてのリクエストでフラッシュメッセージをビューで使えるようにするミドルウェア
 app.use((req, res, next) => {
     res.locals.success = req.flash('success');
@@ -73,6 +89,7 @@ app.use((req, res, next) => {
 // ルーターを使用する
 app.use('/campgrounds', campgroundRoutes);
 app.use('/campgrounds/:id/reviews', reviewRoutes);
+app.use('/', userRoutes);
 
 // トップページ('/')へのGETリクエストが来たときの処理
 app.get('/', (req, res) => {

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 29: Passport.jsによる認証基盤の構築</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 29: Passport.jsによる認証基盤の構築</h2>
+        <p>
+            以前の<code>AuthDemo</code>プロジェクトでは認証機能を自前で実装しましたが、今回はより堅牢で拡張性の高い認証システムを構築するため、Node.jsのデファクトスタンダードである<code>Passport.js</code>を導入しました。
+        </p>
+
+        <h3>学習の目的</h3>
+        <ul>
+            <li><code>passport</code>, <code>passport-local</code>,
+                <code>passport-local-mongoose</code>の役割を理解し、インストールする。
+            </li>
+            <li><code>passport-local-mongoose</code>プラグインを使い、Userモデルの定義を大幅に簡略化する方法を学ぶ。</li>
+            <li>ExpressアプリケーションにPassportのミドルウェアを設定し、初期化する流れを理解する。</li>
+            <li>Passportの「ストラテジー（戦略）」の概念と、セッション管理の仕組み（シリアライズ・デシリアライズ）を把握する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+        <p>
+            Passportを導入するために、関連パッケージのインストール、Userモデルの更新、そして<code>index.js</code>での設定を行いました。
+        </p>
+        <h4>1. 関連パッケージのインストール</h4>
+        <p>
+            認証の核となる<code>passport</code>、ユーザー名とパスワードによる認証（ローカル認証）を行うための<code>passport-local</code>、そしてMongooseとの連携を劇的に簡単にする<code>passport-local-mongoose</code>をインストールしました。
+        </p>
+        <pre><code class="language-bash">npm i passport passport-local passport-local-mongoose</code></pre>
+
+        <h4>2. Userモデルの更新 (<code>models/user.js</code>)</h4>
+        <p>
+            <code>passport-local-mongoose</code>をプラグインとして利用することで、Userモデルの記述が非常にシンプルになりました。
+        </p>
+        <pre><code class="language-javascript">const passportLocalMongoose = require('passport-local-mongoose');
+
+const UserSchema = new Schema({
+    email: {
+        type: String,
+        required: true,
+        unique: true
+    }
+});
+
+UserSchema.plugin(passportLocalMongoose);</code></pre>
+        <div class="concept">
+            <h4>💡 <code>passport-local-mongoose</code>の威力</h4>
+            <p>このプラグインは、スキーマに<code>username</code>, <code>hash</code>,
+                <code>salt</code>フィールドを自動で追加し、パスワードのハッシュ化や比較といった面倒な処理をすべて裏側で担ってくれます。さらに、<code>User.register()</code>や<code>User.authenticate()</code>といった便利なメソッドもモデルに追加してくれるため、手動で<code>bcrypt</code>を扱う必要がなくなりました。
+            </p>
+        </div>
+
+        <h4>3. Passportの初期設定 (<code>index.js</code>)</h4>
+        <p>
+            アプリケーション全体でPassportが機能するように、ミドルウェアとして設定しました。この設定は<code>express-session</code>の後に行う必要があります。
+        </p>
+        <pre><code class="language-javascript">// index.js
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(new LocalStrategy(User.authenticate()));
+
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(User.deserializeUser());</code></pre>
+        <div class="concept">
+            <h4>💡 Passportの認証フロー</h4>
+            <ul>
+                <li><strong><code>passport.initialize()</code> / <code>passport.session()</code></strong>:
+                    Passportを起動し、セッションと連携させます。</li>
+                <li><strong><code>passport.use(...)</code></strong>:
+                    Passportに「どのような方法で認証を行うか（ストラテジー）」を教えます。今回は<code>LocalStrategy</code>（ユーザー名とパスワード）を使い、その具体的な認証ロジックとして<code>passport-local-mongoose</code>が提供する<code>User.authenticate()</code>メソッドを指定しました。
+                </li>
+                <li><strong><code>serializeUser</code> / <code>deserializeUser</code></strong>:
+                    ログイン成功後、セッションにどの情報（通常はユーザーID）を保存するか（シリアライズ）、そして後続のリクエストでセッションからユーザー情報をどう復元するか（デシリアライズ）を定義します。これも<code>passport-local-mongoose</code>が提供するメソッドを渡すだけで完了です。
+                </li>
+            </ul>
+        </div>
+        <p>
+            これで、ユーザー登録やログインのルートを実装するための準備が整いました。
+        </p>
+    </div>
+
+</body>
+
+</html>

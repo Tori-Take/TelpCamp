@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const catchAsync = require('../utils/catchAsync');
+const passport = require('passport');
 const User = require('../models/user');
 
 // 登録フォームを表示するルート
@@ -26,5 +27,28 @@ router.post('/register', catchAsync(async (req, res, next) => {
         res.redirect('/register');
     }
 }));
+
+// ログインフォームを表示するルート
+router.get('/login', (req, res) => {
+    res.render('users/login');
+});
+
+// ログイン処理を行うルート
+// passport.authenticateミドルウェアを使って認証を行う
+// 認証に失敗した場合は、フラッシュメッセージと共に/loginにリダイレクトする
+router.post('/login', passport.authenticate('local', { failureFlash: true, failureRedirect: '/login' }), (req, res) => {
+    req.flash('success', 'おかえりなさい！');
+    res.redirect('/campgrounds');
+});
+
+// ログアウト処理
+router.get('/logout', (req, res, next) => {
+    // passportが提供するlogoutメソッド
+    req.logout(function (err) {
+        if (err) { return next(err); }
+        req.flash('success', 'ログアウトしました。');
+        res.redirect('/campgrounds');
+    });
+});
 
 module.exports = router;

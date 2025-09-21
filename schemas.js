@@ -12,7 +12,14 @@ module.exports.campgroundSchema = Joi.object({
 
 module.exports.reviewSchema = Joi.object({
     review: Joi.object({
-        rating: Joi.number().required().min(1).max(5),
-        body: Joi.string().required()
+        rating: Joi.number().required().min(1).max(5).messages({
+            'number.base': '評価は数字で入力してください。',
+            'any.required': '評価は必須です。',
+            'number.min': '評価は1以上で入力してください。',
+            'number.max': '評価は5以下で入力してください。'
+        }),
+        body: Joi.string().required().messages({
+            'string.empty': 'コメントを入力してください。'
+        })
     }).required()
 });

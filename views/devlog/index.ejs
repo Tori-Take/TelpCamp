@@ -1,0 +1,18 @@
+<% layout('layouts/boilerplate') %>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="mb-4">TelpCamp 開発記録</h1>
+            <p>このプロジェクトが完成するまでの学習の軌跡です。</p>
+            <div class="list-group">
+                <% for(let file of files) { %>
+                    <%# ファイル名から拡張子を除き、ハイフンをスペースに置換してタイトルとして表示 %>
+                        <% const title=file.replace('.html', '' ).replace(/-/g, ' ' ) %>
+                            <a href="/devlog/<%= file %>" class="list-group-item list-group-item-action" target="_blank"
+                                rel="noopener noreferrer">
+                                <%= title %>
+                            </a>
+                            <% } %>
+            </div>
+        </div>
+    </div>

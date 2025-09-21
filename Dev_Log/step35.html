@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 35: レビューとユーザーの紐付け</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 35: レビューとユーザーの紐付け</h2>
+        <p>
+            キャンプ場と同様に、レビューにも「誰が投稿したか」という所有者情報を記録するようにしました。これにより、より詳細なアクセス制御（例：レビューの本人による削除）の基盤が整います。
+        </p>
+        <h3>学習の目的</h3>
+        <ul>
+            <li>Reviewモデルにも<code>author</code>フィールドを追加し、Userモデルと関連付ける。</li>
+            <li>レビュー作成時に、ログイン中のユーザーIDを<code>author</code>として保存する。</li>
+            <li>Mongooseの「ネストされたPopulate」を使い、関連データのさらに関連データを取得する方法を学ぶ。</li>
+            <li>ビューで、ネストされたPopulateで取得した情報を表示する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+        <p>
+            キャンプ場の時と同様に、モデルの更新、ルートの修正、そしてビューの更新という流れで実装しました。
+        </p>
+        <h4>1. Reviewモデルへの<code>author</code>フィールド追加</h4>
+        <p>
+            <code>models/review.js</code>を修正し、投稿者のIDを保存するための<code>author</code>フィールドを追加しました。
+        </p>
+        <pre><code class="language-javascript">// models/review.js
+const reviewSchema = new Schema({
+    body: String,
+    rating: Number,
+    author: {
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    }
+});</code></pre>
+
+        <h4>2. レビュー作成ルートの修正 (<code>routes/reviews.js</code>)</h4>
+        <p>
+            レビューを新規作成する<code>POST</code>ルートで、新しい<code>review</code>オブジェクトにログイン中のユーザーID（<code>req.user._id</code>）を<code>author</code>として設定してから保存するように変更しました。
+        </p>
+        <pre><code class="language-javascript">// routes/reviews.js
+router.post('/', isLoggedIn, ..., wrapAsync(async (req, res) => {
+    // ...
+    const review = new Review(req.body.review);
+    review.author = req.user._id; // ログインユーザーを登録者として設定
+    // ...
+}));</code></pre>
+
+        <h4>3. ネストされたPopulateの実行 (<code>routes/campgrounds.js</code>)</h4>
+        <p>
+            キャンプ場詳細ページでレビューの投稿者名を表示するために、<code>populate</code>をネストさせる必要がありました。<code>reviews</code>をpopulateし、さらにその中の各レビューの<code>author</code>をpopulateするように指定します。
+        </p>
+        <pre><code class="language-javascript">// routes/campgrounds.js
+const campground = await Campground.findById(id).populate({
+    path: 'reviews',
+    populate: {
+        path: 'author'
+    }
+}).populate('author');</code></pre>
+        <div class="concept">
+            <h4>💡 ネストされたPopulate</h4>
+            <p><code>populate()</code>の引数にオブジェクトを渡すことで、より詳細な指定が可能です。<code>path</code>でpopulateしたいフィールド名を指定し、さらにその中のフィールドをpopulateしたい場合は、<code>populate</code>プロパティをネストして記述します。これにより、関連データのさらに先の関連データまで一度に取得できます。
+            </p>
+        </div>
+        <p>
+            この実装により、レビューにも所有者情報が記録され、アプリケーションのデータ構造がより豊かになりました。
+        </p>
+    </div>
+
+</body>
+
+</html>

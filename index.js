@@ -14,6 +14,7 @@ const User = require('./models/user');
 
 // ルーターを読み込みます
 const campgroundRoutes = require('./routes/campgrounds');
+const wrapAsync = require('./utils/wrapAsync');
 const reviewRoutes = require('./routes/reviews');
 const userRoutes = require('./routes/users');
 

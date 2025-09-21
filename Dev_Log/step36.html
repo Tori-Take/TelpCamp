@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 36: レビュー機能の改善とUX向上</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #fef9e7;
+            border-left: 5px solid #f1c40f;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 36: レビュー機能の改善とUX向上</h2>
+        <p>
+            レビュー機能の実装を進める中で発生したいくつかの問題点を修正し、より堅牢でユーザーフレンドリーなアプリケーションを目指しました。具体的には、バリデーションエラーの表示方法の改善、エラーメッセージの日本語化、そしてログイン後のリダイレクトに関するバグの修正を行いました。
+        </p>
+        <h3>学習の目的</h3>
+        <ul>
+            <li>サーバーサイドバリデーション（Joi）でエラーが発生した際の、ユーザーへのフィードバック方法を改善する。</li>
+            <li>Joiの<code>.messages()</code>メソッドを使い、バリデーションエラーメッセージを日本語化する。</li>
+            <li>ログイン後のリダイレクト機能に潜んでいたバグの原因を特定し、修正する。</li>
+            <li>ミドルウェアの実行順序と役割分担を再考し、よりクリーンなコード構造を目指す。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+
+        <h4>1. バリデーションエラーのハンドリング改善</h4>
+        <p>
+            これまでの<code>validateReview</code>ミドルウェアは、エラー発生時に<code>ExpressError</code>をスローしていました。これを、エラーメッセージをフラッシュに保存し、元のページにリダイレクトする方式に変更しました。
+        </p>
+        <pre><code class="language-javascript">// routes/reviews.js
+const validateReview = (req, res, next) => {
+    const { error } = reviewSchema.validate(req.body);
+    if (error) {
+        const msg = error.details.map(el => el.message).join(',');
+        // エラーをスローする代わりに、フラッシュメッセージを設定してリダイレクト
+        req.flash('error', msg);
+        return res.redirect(`/campgrounds/${req.params.id}`);
+    } else {
+        next();
+    }
+}</code></pre>
+        <p>これにより、ユーザーはエラーページに飛ばされることなく、自分がいたページでエラー内容を確認できるようになりました。</p>
+
+        <h4>2. Joiバリデーションメッセージの日本語化</h4>
+        <p>
+            Passportの認証エラーと同様に、Joiのバリデーションエラーも日本語化しました。<code>schemas.js</code>の各ルールに<code>.messages()</code>メソッドを追加します。
+        </p>
+        <pre><code class="language-javascript">// schemas.js
+module.exports.reviewSchema = Joi.object({
+    review: Joi.object({
+        rating: Joi.number().required().min(1).max(5).messages({ ... }),
+        body: Joi.string().required().messages({
+            'string.empty': 'コメントを入力してください。'
+        })
+    }).required()
+});</code></pre>
+        <p>これにより、フラッシュメッセージに表示されるエラー内容が、より分かりやすい日本語になりました。</p>
+
+        <h4>3. ログイン後のリダイレクトバグの修正</h4>
+        <p>
+            ログアウト状態でレビュー投稿（POSTリクエスト）などを行うと、ログイン後に「ページが見つかりません」エラーが発生する問題がありました。これは、戻り先URLとしてPOSTアクションのURLがセッションに保存されてしまうことが原因でした。
+        </p>
+        <div class="concept">
+            <h4>💡 バグ修正のロジック</h4>
+            <ol>
+                <li>
+                    <strong>原因:</strong>
+                    <code>isLoggedIn</code>ミドルウェアが、リクエストの種類（GET/POST）を問わず、アクセスしようとしたURL(<code>req.originalUrl</code>)をセッションに保存していた。
+                </li>
+                <li>
+                    <strong>解決策:</strong>
+                    戻り先として保存すべきなのは、ユーザーが「見ていた」ページ、つまりGETリクエストのURLのみです。そこで、URL保存のロジックを<code>isLoggedIn</code>から<code>index.js</code>のグローバルなミドルウェアに移動させ、GETリクエストの時だけURLをセッションに保存するように変更しました。
+                </li>
+            </ol>
+        </div>
+        <pre><code class="language-javascript">// index.js
+app.use((req, res, next) => {
+    // ログイン/登録ページ以外のGETリクエストのURLを保存しておく
+    if (!['/login', '/register'].includes(req.originalUrl) && req.method === 'GET') {
+        req.session.returnTo = req.originalUrl;
+    }
+    res.locals.currentUser = req.user;
+    // ...
+    next();
+});
+
+// middleware.js
+// isLoggedInミドルウェアからはURL保存のロジックを削除
+module.exports.isLoggedIn = (req, res, next) => {
+    if (!req.isAuthenticated()) {
+        req.flash('error', 'この操作を行うにはログインしてください。');
+        return res.redirect('/login');
+    }
+    next();
+}</code></pre>
+        <p>この修正により、アプリケーションのどのページからログインを求められても、ログイン後には正しく元のページに戻れるようになり、ユーザー体験が大幅に向上しました。</p>
+    </div>
+
+</body>
+
+</html>

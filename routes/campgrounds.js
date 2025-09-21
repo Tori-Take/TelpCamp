@@ -4,7 +4,7 @@ const wrapAsync = require('../utils/wrapAsync');
 const ExpressError = require('../utils/ExpressError');
 const Campground = require('../models/campground');
 const { campgroundSchema } = require('../schemas.js');
-const { isLoggedIn } = require('../middleware');
+const { isLoggedIn, isAuthor } = require('../middleware');
 
 // キャンプ場用のバリデーションミドルウェア
 const validateCampground = (req, res, next) => {
@@ -40,7 +40,12 @@ router.post('/', isLoggedIn, validateCampground, wrapAsync(async (req, res) => {
 // Show
 router.get('/:id', wrapAsync(async (req, res, next) => {
     const { id } = req.params;
-    const campground = await Campground.findById(id).populate('reviews').populate('author');
+    const campground = await Campground.findById(id).populate({
+        path: 'reviews',
+        populate: {
+            path: 'author'
+        }
+    }).populate('author');
     if (!campground) {
         req.flash('error', '指定されたIDのキャンプ場は見つかりませんでした。');
         return res.redirect('/campgrounds');
@@ -49,7 +54,7 @@ router.get('/:id', wrapAsync(async (req, res, next) => {
 }));
 
 // Edit
-router.get('/:id/edit', isLoggedIn, wrapAsync(async (req, res, next) => {
+router.get('/:id/edit', isLoggedIn, isAuthor, wrapAsync(async (req, res, next) => {
     const { id } = req.params;
     const campground = await Campground.findById(id);
     if (!campground) {
@@ -60,7 +65,7 @@ router.get('/:id/edit', isLoggedIn, wrapAsync(async (req, res, next) => {
 }));
 
 // Update
-router.put('/:id', isLoggedIn, validateCampground, wrapAsync(async (req, res) => {
+router.put('/:id', isLoggedIn, isAuthor, validateCampground, wrapAsync(async (req, res) => {
     const { id } = req.params;
     const campground = await Campground.findByIdAndUpdate(id, { ...req.body.campground });
     req.flash('success', 'キャンプ場情報を更新しました。');
@@ -68,7 +73,7 @@ router.put('/:id', isLoggedIn, validateCampground, wrapAsync(async (req, res) =>
 }));
 
 // Delete
-router.delete('/:id', isLoggedIn, wrapAsync(async (req, res) => {
+router.delete('/:id', isLoggedIn, isAuthor, wrapAsync(async (req, res) => {
     const { id } = req.params;
     await Campground.findByIdAndDelete(id);
     req.flash('success', 'キャンプ場情報を削除しました。');

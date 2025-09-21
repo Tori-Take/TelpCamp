@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発コラム - 6: サーバーサイドバリデーション (Joi)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp 開発コラム</h1>
+
+    <div class="step">
+        <h2>コラム6: アプリケーションの最後の砦 - サーバーサイドバリデーション</h2>
+        <p>
+            TelpCampでは、Bootstrapの機能を使って「クライアントサイドバリデーション」を実装し、ユーザーが空のフォームを送信できないようにしました。しかし、これはあくまでユーザー体験を向上させるためのもので、セキュリティ対策としては不十分です。悪意のあるユーザーは、このチェックを簡単に迂回して不正なデータを送信できてしまいます。
+        </p>
+        <p>
+            そこで不可欠となるのが「サーバーサイドバリデーション」です。これは、データがデータベースに保存される直前に、サーバー側でそのデータが正しい形式かどうかを厳密にチェックする仕組みです。TelpCampでは、この目的のために<code>Joi</code>という非常に人気のあるライブラリを使用しています。
+        </p>
+
+        <h3>実装の解説</h3>
+        <h4>1. ルールブックの作成 (<code>schemas.js</code>)</h4>
+        <p>
+            まず、どのようなデータを受け入れるかの「ルールブック」を<code>schemas.js</code>に定義しました。例えば、キャンプ場の価格は必須で、0以上の数字でなければならない、といったルールを記述します。
+        </p>
+        <pre><code class="language-javascript">// schemas.js
+const Joi = require('joi');
+
+module.exports.campgroundSchema = Joi.object({
+    campground: Joi.object({
+        name: Joi.string().required(),
+        price: Joi.number().required().min(0),
+        // ...
+    }).required()
+});</code></pre>
+
+        <h4>2. バリデーションミドルウェアの作成</h4>
+        <p>
+            次に、定義したルールを使って実際にデータを検証するミドルウェアを作成しました。例えば、キャンプ場用の<code>validateCampground</code>ミドルウェアは以下のようになっています。
+        </p>
+        <pre><code class="language-javascript">// routes/campgrounds.js
+const validateCampground = (req, res, next) => {
+    const { error } = campgroundSchema.validate(req.body);
+    if (error) {
+        const msg = error.details.map(el => el.message).join(',');
+        throw new ExpressError(msg, 400);
+    } else {
+        next();
+    }
+}</code></pre>
+
+        <h4>3. ルートへの適用</h4>
+        <p>
+            最後に、このミドルウェアをデータを作成・更新するルートに組み込みます。これにより、不正なデータがルートハンドラのロジックに到達する前にブロックされます。
+        </p>
+        <pre><code class="language-javascript">router.post('/', isLoggedIn, validateCampground, wrapAsync(async (req, res) => { ... }));
+router.put('/:id', isLoggedIn, isAuthor, validateCampground, wrapAsync(async (req, res) => { ... }));</code></pre>
+
+        <div class="concept">
+            <h4>💡 防御は多層的に (Defense in Depth)</h4>
+            <p>クライアントサイドとサーバーサイドの両方でバリデーションを行うことは、「多層防御」というセキュリティの基本原則です。クライアントサイドはUXを、サーバーサイドはデータの整合性と安全性を担保します。この両方を実装することで、TelpCampはより堅牢で信頼性の高いアプリケーションになっています。
+            </p>
+        </div>
+    </div>
+
+</body>
+
+</html>

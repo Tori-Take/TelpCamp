@@ -6,14 +6,16 @@ const ExpressError = require('../utils/ExpressError');
 const Campground = require('../models/campground');
 const Review = require('../models/review');
 const { reviewSchema } = require('../schemas.js');
-const { isLoggedIn } = require('../middleware');
+const { isLoggedIn, isReviewAuthor } = require('../middleware');
 
 // レビュー用のバリデーションミドルウェア
 const validateReview = (req, res, next) => {
     const { error } = reviewSchema.validate(req.body);
     if (error) {
         const msg = error.details.map(el => el.message).join(',');
-        throw new ExpressError(msg, 400);
+        // エラーをスローする代わりに、フラッシュメッセージを設定してリダイレクトします
+        req.flash('error', msg);
+        return res.redirect(`/campgrounds/${req.params.id}`);
     } else {
         next();
     }
@@ -23,6 +25,7 @@ const validateReview = (req, res, next) => {
 router.post('/', isLoggedIn, validateReview, wrapAsync(async (req, res) => {
     const campground = await Campground.findById(req.params.id);
     const review = new Review(req.body.review);
+    review.author = req.user._id;
     campground.reviews.push(review);
     await review.save();
     await campground.save();
@@ -31,7 +34,7 @@ router.post('/', isLoggedIn, validateReview, wrapAsync(async (req, res) => {
 }));
 
 // Delete Review
-router.delete('/:reviewId', isLoggedIn, wrapAsync(async (req, res) => {
+router.delete('/:reviewId', isLoggedIn, isReviewAuthor, wrapAsync(async (req, res) => {
     const { id, reviewId } = req.params;
     await Campground.findByIdAndUpdate(id, { $pull: { reviews: reviewId } });
     await Review.findByIdAndDelete(reviewId);

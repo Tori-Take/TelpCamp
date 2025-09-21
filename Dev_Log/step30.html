@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TelpCamp 開発記録 - Step 30: ユーザー登録機能の実装</title>
+    <title>TelpCamp 開発記録 - Step 30: ユーザー登録と改善</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -150,6 +150,34 @@
 app.use('/', userRoutes);</code></pre>
         <p>
             これで、ユーザーは<code>/register</code>にアクセスして新しいアカウントを作成できるようになりました。
+        </p>
+
+        <hr style="margin: 2rem 0;">
+
+        <h4>4. (改善) エラーメッセージの日本語化</h4>
+        <p>
+            ユーザー登録時に発生するエラーメッセージ（ユーザー名の重複など）は、デフォルトでは英語で表示されます。これをユーザーにとって分かりやすい日本語のメッセージに変更し、UX（ユーザー体験）を向上させました。
+        </p>
+        <p>
+            <code>models/user.js</code>ファイルで<code>passport-local-mongoose</code>プラグインを適用する際に、<code>errorMessages</code>オプションを渡すことでメッセージを上書きします。
+        </p>
+        <pre><code class="language-javascript">// models/user.js
+UserSchema.plugin(passportLocalMongoose, {
+    errorMessages: {
+        UserExistsError: 'そのユーザー名はすでに使用されています。',
+        MissingPasswordError: 'パスワードが入力されていません。',
+        IncorrectPasswordError: 'パスワードまたはユーザー名が正しくありません。',
+        IncorrectUsernameError: 'パスワードまたはユーザー名が正しくありません。',
+        // ...その他のエラーメッセージ
+    }
+});</code></pre>
+        <div class="concept">
+            <h4>💡 セキュリティを考慮したメッセージ</h4>
+            <p><code>IncorrectPasswordError</code>（パスワード間違い）と<code>IncorrectUsernameError</code>（ユーザー名間違い）のメッセージを、意図的に同じ「パスワードまたはユーザー名が正しくありません。」に統一しています。これは、「そのユーザー名は存在するが、パスワードが違う」といった具体的な情報を攻撃者に与えないための、一般的なセキュリティプラクティスです。
+            </p>
+        </div>
+        <p>
+            この修正により、ルートの<code>catch</code>ブロックで捕捉されるエラーの<code>e.message</code>が、ここで設定した日本語のメッセージに置き換わります。
         </p>
     </div>
 

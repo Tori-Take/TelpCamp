@@ -3,7 +3,7 @@
     <div class="row">
         <div class="col-6">
             <div class="card mb-3">
-                <img src="<%= campground.image %>" class="card-img-top" alt="<%= campground.name %>の画像">
+                <img src="<%= campground.image %>" class="card-img-top" alt="...">
                 <div class="card-body">
                     <h5 class="card-title">
                         <%= campground.name %>
@@ -16,14 +16,15 @@
                     <li class="list-group-item text-muted">
                         <%= campground.location %>
                     </li>
+                    <li class="list-group-item">登録者: <%= campground.author.username %>
+                    </li>
                     <li class="list-group-item">
-                        ¥<%= campground.price.toLocaleString() %>/泊
+                        <%= campground.price.toLocaleString() %>円/泊
                     </li>
                 </ul>
                 <div class="card-body">
                     <a href="/campgrounds/<%= campground._id %>/edit" class="card-link btn btn-info">編集</a>
-                    <form class="d-inline" action="/campgrounds/<%= campground._id %>?_method=DELETE" method="POST"
-                        onsubmit="return confirm('本当にこのキャンプ場を削除しますか？');">
+                    <form class="d-inline" action="/campgrounds/<%= campground._id %>?_method=DELETE" method="POST">
                         <button class="btn btn-danger">削除</button>
                     </form>
                 </div>
@@ -31,46 +32,35 @@
                     <a href="/campgrounds">キャンプ場一覧へ戻る</a>
                 </div>
             </div>
-
         </div>
         <div class="col-6">
-            <h2>レビューを投稿する</h2>
-            <form action="/campgrounds/<%= campground._id %>/reviews" method="POST" class="mb-3 needs-validation"
+            <h2>レビュー</h2>
+            <form action="/campgrounds/<%= campground._id %>/reviews" method="POST" class="mb-3 validated-form"
                 novalidate>
                 <div class="mb-3">
-                    <label class="form-label" for="rating">評価</label>
-                    <input class="form-range" type="range" min="1" max="5" name="review[rating]" id="rating">
+                    <label for="rating" class="form-label">評価</label>
+                    <input type="range" class="form-range" min="1" max="5" name="review[rating]" id="rating">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label" for="body">コメント</label>
-                    <textarea class="form-control" name="review[body]" id="body" cols="30" rows="3" required></textarea>
-                    <div class="valid-feedback">
-                        OK!
-                    </div>
-                    <div class="invalid-feedback">
-                        コメントを入力してください。
+                    <label for="body" class="form-label">コメント</label>
+                    <textarea name="review[body]" id="body" cols="30" rows="3" class="form-control" required></textarea>
+                </div>
+                <button class="btn btn-success">投稿する</button>
+            </form>
+            <% for(let review of campground.reviews) { %>
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">評価: <%= review.rating %>
+                        </h5>
+                        <p class="card-text">
+                            <%= review.body %>
+                        </p>
+                        <form action="/campgrounds/<%= campground._id %>/reviews/<%= review._id %>?_method=DELETE"
+                            method="POST">
+                            <button class="btn btn-sm btn-danger">削除</button>
+                        </form>
                     </div>
                 </div>
-                <button class="btn btn-success">投稿</button>
-            </form>
-
-            <% if(campground.reviews.length) { %>
-                <h2 class="mt-4">レビュー一覧</h2>
-                <% for(let review of campground.reviews) { %>
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <h5 class="card-title">評価: <%= review.rating %>
-                            </h5>
-                            <p class="card-text">
-                                <%= review.body %>
-                            </p>
-                            <form action="/campgrounds/<%= campground._id %>/reviews/<%= review._id %>?_method=DELETE"
-                                method="POST">
-                                <button class="btn btn-sm btn-danger">削除</button>
-                            </form>
-                        </div>
-                    </div>
-                    <% } %>
-                        <% } %>
+                <% } %>
         </div>
     </div>

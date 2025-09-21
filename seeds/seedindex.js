@@ -26,6 +26,8 @@ const seedDB = async () => {
         // 1000円から5999円のランダムな価格を生成
         const price = Math.floor(Math.random() * 5000) + 1000;
         const camp = new Campground({
+            // 指定されたユーザーIDを登録者として設定
+            author: '68cf48203000edac04789145',
             // 例: 「北海道札幌市」
             location: `${cities[randomCityIndex].prefecture}${cities[randomCityIndex].city}`,
             // 例: 「サイレント・キャンプ」

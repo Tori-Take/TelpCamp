@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 34: データとユーザーの紐付け</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 34: データとユーザーの紐付け（所有権の記録）</h2>
+        <p>
+            アプリケーションのセキュリティをさらに強化するため、どのキャンプ場がどのユーザーによって作成されたかを記録する機能を実装しました。これは、後のステップで「投稿者本人だけが編集・削除できる」といった、より詳細な認可（Authorization）を実装するための重要な基盤となります。
+        </p>
+        <h3>学習の目的</h3>
+        <ul>
+            <li>Mongooseの参照（<code>ref</code>）を使い、異なるコレクション間のドキュメントを関連付ける方法を学ぶ。</li>
+            <li>キャンプ場作成時に、ログイン中のユーザー情報（<code>req.user</code>）をデータに紐付けて保存する方法を習得する。</li>
+            <li>詳細表示ページで、関連付けられたユーザー情報を<code>populate()</code>を使って取得・表示する方法を実践する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+        <p>
+            モデルのスキーマを更新し、ルートのロジックを修正することで実装しました。
+        </p>
+        <h4>1. Campgroundモデルへの<code>author</code>フィールド追加</h4>
+        <p>
+            <code>models/campground.js</code>を修正し、登録者のIDを保存するための<code>author</code>フィールドを追加しました。<code>ref: 'User'</code>と指定することで、このフィールドが<code>User</code>モデルのドキュメントを参照することを示します。
+        </p>
+        <pre><code class="language-javascript">// models/campground.js
+const campgroundSchema = new Schema({
+    // ...
+    author: {
+        type: Schema.Types.ObjectId,
+        ref: 'User'
+    },
+    // ...
+});</code></pre>
+
+        <h4>2. 新規登録ルートの修正 (<code>routes/campgrounds.js</code>)</h4>
+        <p>
+            キャンプ場を新規作成する<code>POST /campgrounds</code>ルートで、リクエストボディから作成した<code>campground</code>オブジェクトに、ログイン中のユーザーID（<code>req.user._id</code>）を<code>author</code>として設定してから保存するように変更しました。
+        </p>
+        <pre><code class="language-javascript">// routes/campgrounds.js
+router.post('/', isLoggedIn, ..., wrapAsync(async (req, res) => {
+    const campground = new Campground(req.body.campground);
+    campground.author = req.user._id; // ログインユーザーを登録者として設定
+    await campground.save();
+    // ...
+}));</code></pre>
+
+        <h4>3. 詳細表示ルートの修正 (<code>routes/campgrounds.js</code>)</h4>
+        <p>
+            詳細ページで登録者名を表示するために、<code>GET /campgrounds/:id</code>ルートの<code>findById</code>クエリに<code>.populate('author')</code>を追加しました。これにより、キャンプ場データと一緒に、関連するユーザーの全情報も取得できます。
+        </p>
+        <pre><code class="language-javascript">// routes/campgrounds.js
+router.get('/:id', wrapAsync(async (req, res, next) => {
+    const campground = await Campground.findById(id)
+        .populate('reviews')
+        .populate('author'); // author情報をpopulate
+    // ...
+}));</code></pre>
+        <p>
+            この実装により、すべてのキャンプ場データに「所有者」の情報が記録されるようになり、より高度なアクセス制御を行うための準備が整いました。
+        </p>
+
+        <hr style="margin: 2rem 0;">
+
+        <h4>4. 詳細ページでの登録者表示 (<code>views/campgrounds/show.ejs</code>)</h4>
+        <p>
+            最後に、<code>populate</code>で取得した登録者情報を、詳細ページに表示します。<code>campground.author</code>にはユーザーオブジェクトが格納されているため、<code>campground.author.username</code>のようにしてユーザー名にアクセスできます。
+        </p>
+        <pre><code class="language-html">&lt;!-- views/campgrounds/show.ejs --&gt;
+&lt;ul class="list-group list-group-flush"&gt;
+    &lt;li class="list-group-item text-muted"&gt;&lt;%= campground.location %&gt;&lt;/li&gt;
+    &lt;li class="list-group-item"&gt;登録者: &lt;%= campground.author.username %&gt;&lt;/li&gt;
+    &lt;li class="list-group-item"&gt;&lt;%= campground.price.toLocaleString() %&gt;円/泊&lt;/li&gt;
+&lt;/ul&gt;</code></pre>
+
+    </div>
+
+</body>
+
+</html>

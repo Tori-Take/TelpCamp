@@ -31,6 +31,7 @@ router.get('/new', isLoggedIn, (req, res) => {
 // Create
 router.post('/', isLoggedIn, validateCampground, wrapAsync(async (req, res) => {
     const campground = new Campground(req.body.campground);
+    campground.author = req.user._id; // ログインユーザーのIDをauthorとして設定
     await campground.save();
     req.flash('success', '新しいキャンプ場を作成しました。');
     res.redirect(`/campgrounds/${campground._id}`);
@@ -39,7 +40,7 @@ router.post('/', isLoggedIn, validateCampground, wrapAsync(async (req, res) => {
 // Show
 router.get('/:id', wrapAsync(async (req, res, next) => {
     const { id } = req.params;
-    const campground = await Campground.findById(id).populate('reviews');
+    const campground = await Campground.findById(id).populate('reviews').populate('author');
     if (!campground) {
         req.flash('error', '指定されたIDのキャンプ場は見つかりませんでした。');
         return res.redirect('/campgrounds');

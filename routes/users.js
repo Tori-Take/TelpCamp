@@ -19,8 +19,11 @@ router.post('/register', catchAsync(async (req, res, next) => {
         // 登録後、自動的にログインさせる
         req.login(registeredUser, err => {
             if (err) return next(err);
+            // セッションに保存された元のURL、なければ'/campgrounds'へ
+            const redirectUrl = req.session.returnTo || '/campgrounds';
+            delete req.session.returnTo; // 使用後はセッションから削除
             req.flash('success', 'TelpCampへようこそ！');
-            res.redirect('/campgrounds');
+            res.redirect(redirectUrl);
         });
     } catch (e) {
         req.flash('error', e.message);
@@ -36,9 +39,12 @@ router.get('/login', (req, res) => {
 // ログイン処理を行うルート
 // passport.authenticateミドルウェアを使って認証を行う
 // 認証に失敗した場合は、フラッシュメッセージと共に/loginにリダイレクトする
-router.post('/login', passport.authenticate('local', { failureFlash: true, failureRedirect: '/login' }), (req, res) => {
+router.post('/login', passport.authenticate('local', { failureFlash: true, failureRedirect: '/login', keepSessionInfo: true }), (req, res) => {
     req.flash('success', 'おかえりなさい！');
-    res.redirect('/campgrounds');
+    // セッションに保存された元のURL、なければ'/campgrounds'へ
+    const redirectUrl = req.session.returnTo || '/campgrounds';
+    delete req.session.returnTo; // 使用後はセッションから削除
+    res.redirect(redirectUrl);
 });
 
 // ログアウト処理

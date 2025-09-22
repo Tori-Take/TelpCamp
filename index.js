@@ -118,8 +118,11 @@ app.use((req, res, next) => {
 // next(err) が呼ばれると、このミドルウェアが実行されます
 app.use((err, req, res, next) => {
     // デフォルトのステータスコードとメッセージを設定
-    const { statusCode = 500, message = '問題が起きました' } = err;
-    res.status(statusCode).send(message);
+    const { statusCode = 500 } = err;
+    if (!err.message) {
+        err.message = '問題が起きました';
+    }
+    res.status(statusCode).render('error', { err });
 });
 
 // --- サーバー起動 ---

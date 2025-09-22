@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const wrapAsync = require('../utils/wrapAsync');
 const ExpressError = require('../utils/ExpressError');
-const Campground = require('../models/campground');
 const { campgroundSchema } = require('../schemas.js');
 const { isLoggedIn, isAuthor } = require('../middleware');
+const campgroundsController = require('../controllers/campgrounds'); // 1. コントローラーを読み込む
 
 // キャンプ場用のバリデーションミドルウェア
 const validateCampground = (req, res, next) => {
@@ -17,67 +17,19 @@ const validateCampground = (req, res, next) => {
     }
 }
 
-// Index
-router.get('/', wrapAsync(async (req, res) => {
-    const campgrounds = await Campground.find({});
-    res.render('campgrounds/index', { campgrounds });
-}));
+router.route('/')
+    .get(wrapAsync(campgroundsController.index))
+    .post(isLoggedIn, validateCampground, wrapAsync(campgroundsController.createCampground));
 
 // New
-router.get('/new', isLoggedIn, (req, res) => {
-    res.render('campgrounds/new');
-});
+router.get('/new', isLoggedIn, campgroundsController.renderNewForm);
 
-// Create
-router.post('/', isLoggedIn, validateCampground, wrapAsync(async (req, res) => {
-    const campground = new Campground(req.body.campground);
-    campground.author = req.user._id; // ログインユーザーのIDをauthorとして設定
-    await campground.save();
-    req.flash('success', '新しいキャンプ場を作成しました。');
-    res.redirect(`/campgrounds/${campground._id}`);
-}));
-
-// Show
-router.get('/:id', wrapAsync(async (req, res, next) => {
-    const { id } = req.params;
-    const campground = await Campground.findById(id).populate({
-        path: 'reviews',
-        populate: {
-            path: 'author'
-        }
-    }).populate('author');
-    if (!campground) {
-        req.flash('error', '指定されたIDのキャンプ場は見つかりませんでした。');
-        return res.redirect('/campgrounds');
-    }
-    res.render('campgrounds/show', { campground });
-}));
+router.route('/:id')
+    .get(wrapAsync(campgroundsController.showCampground))
+    .put(isLoggedIn, isAuthor, validateCampground, wrapAsync(campgroundsController.updateCampground))
+    .delete(isLoggedIn, isAuthor, wrapAsync(campgroundsController.deleteCampground));
 
 // Edit
-router.get('/:id/edit', isLoggedIn, isAuthor, wrapAsync(async (req, res, next) => {
-    const { id } = req.params;
-    const campground = await Campground.findById(id);
-    if (!campground) {
-        req.flash('error', '編集するキャンプ場が見つかりませんでした。');
-        return res.redirect('/campgrounds');
-    }
-    res.render('campgrounds/edit', { campground });
-}));
-
-// Update
-router.put('/:id', isLoggedIn, isAuthor, validateCampground, wrapAsync(async (req, res) => {
-    const { id } = req.params;
-    const campground = await Campground.findByIdAndUpdate(id, { ...req.body.campground });
-    req.flash('success', 'キャンプ場情報を更新しました。');
-    res.redirect(`/campgrounds/${campground._id}`);
-}));
-
-// Delete
-router.delete('/:id', isLoggedIn, isAuthor, wrapAsync(async (req, res) => {
-    const { id } = req.params;
-    await Campground.findByIdAndDelete(id);
-    req.flash('success', 'キャンプ場情報を削除しました。');
-    res.redirect('/campgrounds');
-}));
+router.get('/:id/edit', isLoggedIn, isAuthor, wrapAsync(campgroundsController.renderEditForm));
 
 module.exports = router;

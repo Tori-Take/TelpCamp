@@ -3,14 +3,15 @@ const Review = require('./review'); // 追加: Reviewモデルを読み込む
 const Schema = mongoose.Schema;
 
 const campgroundSchema = new Schema({
-    name: String,
-    image: String,
-    price: Number,
-    description: String,
-    location: String,
+    name: { type: String, required: true },
+    image: { type: String, required: true },
+    price: { type: Number, required: true, min: 0 },
+    description: { type: String, required: true },
+    location: { type: String, required: true },
     author: { // このフィールドを追加
         type: Schema.Types.ObjectId,
-        ref: 'User'
+        ref: 'User',
+        required: true
     },
     reviews: [
         {

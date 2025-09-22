@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 39: MVCアーキテクチャへのリファクタリング</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 39: MVCアーキテクチャへのリファクタリング - コントローラーの導入</h2>
+        <p>
+            これまで、ルートファイル（<code>routes/*.js</code>）にルーティングの定義と、そのルートが実行する具体的な処理ロジックが混在していました。
+            アプリケーションが成長するにつれて、この構造は可読性と保守性を損なう原因となります。
+            そこで今回は、MVC (Model-View-Controller) アーキテクチャの考え方に基づき、処理ロジックを「コントローラー」として分離する大規模なリファクタリングを行いました。
+        </p>
+        <h3>学習の目的</h3>
+        <ul>
+            <li>MVCアーキテクチャにおけるコントローラーの役割を理解する。</li>
+            <li>ルートファイルからビジネスロジックを分離し、コードの「関心の分離」を実践する。</li>
+            <li><code>router.route()</code>を使い、同じパスに対する複数のルート定義をグルーピングして可読性を向上させる。</li>
+            <li>プロジェクト全体の構造を整理し、将来の機能追加やメンテナンスを容易にする。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+        <p>
+            キャンプ場、レビュー、ユーザーのすべてのルートに対して、コントローラーへの分離とルートのグルーピングを適用しました。
+        </p>
+        <ol>
+            <li>
+                <h4>1. コントローラーの作成とロジックの移行</h4>
+                <p>
+                    まず、<code>controllers</code>という新しいディレクトリを作成し、その中に<code>campgrounds.js</code>,
+                    <code>reviews.js</code>, <code>users.js</code>を設置しました。
+                    そして、各ルートファイルに記述されていた処理ロジック（コールバック関数）を、対応するコントローラーファイルに関数としてエクスポートする形で移行しました。
+                </p>
+                <p><b><code>controllers/campgrounds.js</code> の例</b></p>
+                <pre><code class="language-javascript">const Campground = require('../models/campground');
+
+module.exports.createCampground = async (req, res, next) => {
+    const campground = new Campground(req.body.campground);
+    campground.author = req.user._id;
+    await campground.save();
+    req.flash('success', '新しいキャンプ場を作成しました。');
+    res.redirect(`/campgrounds/${campground._id}`);
+};</code></pre>
+                <p>
+                    ルートファイル側では、このコントローラー関数をインポートして呼び出すだけのシンプルな記述になりました。
+                </p>
+                <p><b><code>routes/campgrounds.js</code> の変更後</b></p>
+                <pre><code class="language-javascript">const campgroundsController = require('../controllers/campgrounds');
+
+// ...
+router.post('/', isLoggedIn, validateCampground, wrapAsync(campgroundsController.createCampground));</code></pre>
+                <div class="concept">
+                    <h4>💡 関心の分離 (Separation of Concerns)</h4>
+                    <p>
+                        このリファクタリングの核心は「関心の分離」です。
+                    </p>
+                    <ul>
+                        <li><b>Routes</b>: どのURLパスが、どのHTTPメソッドで、どの処理に繋がるかという「交通整理」に専念する。</li>
+                        <li><b>Controllers</b>: 実際にリクエストを処理し、モデルとやり取りし、レスポンスを返すという「実務」に専念する。</li>
+                    </ul>
+                    <p>
+                        役割分担を明確にすることで、コードがどこにあるかを見つけやすくなり、変更やデバッグが格段に容易になります。
+                    </p>
+                </div>
+            </li>
+            <li>
+                <h4>2. ルートのグルーピング (<code>router.route()</code>)</h4>
+                <p>
+                    同じパスに対して、異なるHTTPメソッド（例:
+                    <code>GET</code>と<code>POST</code>）が定義されているルートを、<code>router.route()</code>を使って一つにまとめました。
+                </p>
+                <pre><code class="language-javascript">// routes/campgrounds.js
+
+// 変更前
+// router.get('/', wrapAsync(campgroundsController.index));
+// router.post('/', isLoggedIn, validateCampground, wrapAsync(campgroundsController.createCampground));
+
+// 変更後
+router.route('/')
+    .get(wrapAsync(campgroundsController.index))
+    .post(isLoggedIn, validateCampground, wrapAsync(campgroundsController.createCampground));
+
+
+// 変更前
+// router.get('/:id', wrapAsync(campgroundsController.showCampground));
+// router.put('/:id', isLoggedIn, isAuthor, validateCampground, wrapAsync(campgroundsController.updateCampground));
+// router.delete('/:id', isLoggedIn, isAuthor, wrapAsync(campgroundsController.deleteCampground));
+
+// 変更後
+router.route('/:id')
+    .get(wrapAsync(campgroundsController.showCampground))
+    .put(isLoggedIn, isAuthor, validateCampground, wrapAsync(campgroundsController.updateCampground))
+    .delete(isLoggedIn, isAuthor, wrapAsync(campgroundsController.deleteCampground));</code></pre>
+                <p>
+                    これにより、どのパスがどのような操作をサポートしているかが一目瞭然になり、ルートファイルの可読性がさらに向上しました。
+                </p>
+            </li>
+        </ol>
+    </div>
+
+</body>
+
+</html>

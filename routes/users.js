@@ -1,60 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const catchAsync = require('../utils/catchAsync');
+const wrapAsync = require('../utils/wrapAsync');
 const passport = require('passport');
-const User = require('../models/user');
+const usersController = require('../controllers/users');
 
-// 登録フォームを表示するルート
-router.get('/register', (req, res) => {
-    res.render('users/register');
-});
+router.route('/register')
+    .get(usersController.renderRegister)
+    .post(wrapAsync(usersController.register));
 
-// ユーザー登録処理を行うルート
-router.post('/register', catchAsync(async (req, res, next) => {
-    try {
-        const { email, username, password } = req.body;
-        const user = new User({ email, username });
-        // User.registerメソッドでユーザーを登録（パスワードのハッシュ化も自動で行われる）
-        const registeredUser = await User.register(user, password);
-        // 登録後、自動的にログインさせる
-        req.login(registeredUser, err => {
-            if (err) return next(err);
-            // セッションに保存された元のURL、なければ'/campgrounds'へ
-            const redirectUrl = req.session.returnTo || '/campgrounds';
-            delete req.session.returnTo; // 使用後はセッションから削除
-            req.flash('success', 'TelpCampへようこそ！');
-            res.redirect(redirectUrl);
-        });
-    } catch (e) {
-        req.flash('error', e.message);
-        res.redirect('/register');
-    }
-}));
-
-// ログインフォームを表示するルート
-router.get('/login', (req, res) => {
-    res.render('users/login');
-});
-
-// ログイン処理を行うルート
-// passport.authenticateミドルウェアを使って認証を行う
-// 認証に失敗した場合は、フラッシュメッセージと共に/loginにリダイレクトする
-router.post('/login', passport.authenticate('local', { failureFlash: true, failureRedirect: '/login', keepSessionInfo: true }), (req, res) => {
-    req.flash('success', 'おかえりなさい！');
-    // セッションに保存された元のURL、なければ'/campgrounds'へ
-    const redirectUrl = req.session.returnTo || '/campgrounds';
-    delete req.session.returnTo; // 使用後はセッションから削除
-    res.redirect(redirectUrl);
-});
+router.route('/login')
+    .get(usersController.renderLogin)
+    // passport.authenticateミドルウェアを使って認証を行う
+    // 認証に失敗した場合は、フラッシュメッセージと共に/loginにリダイレクトする
+    .post(passport.authenticate('local', { failureFlash: true, failureRedirect: '/login', keepSessionInfo: true }), usersController.login);
 
 // ログアウト処理
-router.get('/logout', (req, res, next) => {
-    // passportが提供するlogoutメソッド
-    req.logout(function (err) {
-        if (err) { return next(err); }
-        req.flash('success', 'ログアウトしました。');
-        res.redirect('/campgrounds');
-    });
-});
+router.get('/logout', usersController.logout);
 
 module.exports = router;

@@ -12,6 +12,10 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local');
 const User = require('./models/user');
 
+// .envファイルから環境変数を読み込む (開発環境でのみ使用)
+if (process.env.NODE_ENV !== 'production') require('dotenv').config();
+
+
 // ルーターを読み込みます
 const campgroundRoutes = require('./routes/campgrounds');
 const wrapAsync = require('./utils/wrapAsync');
@@ -52,7 +56,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // --- セッションの設定 ---
 const sessionConfig = {
-    secret: 'mysecret', // セッションIDの署名に使用されるキー
+    secret: process.env.SESSION_SECRET || 'mysecret', // 環境変数からsecretを読み込む
     resave: false, // セッションに変更がない場合でも再保存しない
     saveUninitialized: true, // 未初期化のセッションを保存する
     cookie: {

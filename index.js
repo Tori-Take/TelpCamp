@@ -90,7 +90,6 @@ app.use((req, res, next) => {
     res.locals.error = req.flash('error');
     next();
 });
-
 // --- ルーティング ---
 // ルーターを使用する
 app.use('/campgrounds', campgroundRoutes);

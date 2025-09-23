@@ -1,15 +1,20 @@
 <% layout('layouts/boilerplate') %>
 
     <h1>すべてのキャンプ場</h1>
-    <p>
-        <a href="/campgrounds/new">新しいキャンプ場を登録する</a>
-    </p>
+    <div>
+        <a href="/campgrounds/new">新しいキャンプ場を登録</a>
+    </div>
 
-    <% for (let campground of campgrounds) { %>
+    <% for (let campground of campgrounds){%>
         <div class="card mb-3">
             <div class="row g-0">
                 <div class="col-md-4">
-                    <img src="<%= campground.image %>" class="img-fluid rounded-start" alt="<%= campground.name %>の画像">
+                    <% if(campground.images.length) {%>
+                        <img class="img-fluid" alt="" src="<%=campground.images[0].url%>">
+                        <% } else {%>
+                            <img class="img-fluid" alt=""
+                                src="https://res.cloudinary.com/douqbebwk/image/upload/v1600103881/YelpCamp/lz8jjv2gyynjil7lswf4.png">
+                            <% } %>
                 </div>
                 <div class="col-md-8">
                     <div class="card-body">
@@ -19,12 +24,14 @@
                         <p class="card-text">
                             <%= campground.description %>
                         </p>
-                        <p class="card-text"><small class="text-muted">
+                        <p class="card-text">
+                            <small class="text-muted">
                                 <%= campground.location %>
-                            </small></p>
-                        <a href="/campgrounds/<%= campground._id %>" class="btn btn-primary">詳細を見る</a>
+                            </small>
+                        </p>
+                        <a class="btn btn-primary" href="/campgrounds/<%= campground._id %>">詳細を見る</a>
                     </div>
                 </div>
             </div>
         </div>
-        <% } %>
+        <% }%>

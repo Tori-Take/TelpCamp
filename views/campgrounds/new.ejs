@@ -8,7 +8,7 @@
         <div class="col-6 offset-3">
             <!-- novalidate: ブラウザ標準のバリデーションを無効化 -->
             <!-- needs-validation: Bootstrapのバリデーションを適用するためのクラス -->
-            <form action="/campgrounds" method="POST" novalidate class="needs-validation">
+            <form action="/campgrounds" method="POST" novalidate class="needs-validation" enctype="multipart/form-data">
                 <!-- 下方向にマージン(余白)を追加します -->
                 <div class="mb-3">
                     <label class="form-label" for="name">キャンプ場名</label>
@@ -31,13 +31,9 @@
                         場所を入力してください。
                     </div>
                 </div>
-                <!-- 画像URLの入力欄を追加 -->
                 <div class="mb-3">
-                    <label class="form-label" for="image">画像URL</label>
-                    <input class="form-control" type="text" name="campground[image]" id="image" required>
-                    <div class="invalid-feedback">
-                        画像URLを入力してください。
-                    </div>
+                    <label for="image" class="form-label">画像のアップロード</label>
+                    <input class="form-control" type="file" id="image" name="image" multiple>
                 </div>
                 <!-- 価格の入力欄を追加 -->
                 <div class="mb-3">

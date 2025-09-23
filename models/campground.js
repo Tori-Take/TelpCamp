@@ -1,10 +1,16 @@
 const mongoose = require('mongoose');
 const Review = require('./review'); // 追加: Reviewモデルを読み込む
 const Schema = mongoose.Schema;
+const { cloudinary } = require('../cloudinary');
 
 const campgroundSchema = new Schema({
     name: { type: String, required: true },
-    image: { type: String, required: true },
+    images: [
+        {
+            url: String,
+            filename: String
+        }
+    ],
     price: { type: Number, required: true, min: 0 },
     description: { type: String, required: true },
     location: { type: String, required: true },
@@ -25,14 +31,15 @@ const campgroundSchema = new Schema({
 campgroundSchema.post('findOneAndDelete', async function (doc) {
     // docには削除されたCampgroundドキュメントが渡される
     if (doc) {
-        // 削除されたキャンプ場にレビューが含まれていれば
-        if (doc.reviews.length) {
-            // Reviewモデルから、_idがdoc.reviews配列に含まれるものをすべて削除する
-            await Review.deleteMany({
-                _id: {
-                    $in: doc.reviews
-                }
-            });
+        // 関連するレビューを削除
+        await Review.deleteMany({
+            _id: {
+                $in: doc.reviews
+            }
+        });
+        // 関連する画像をCloudinaryから削除
+        for (const img of doc.images) {
+            await cloudinary.uploader.destroy(img.filename);
         }
     }
 });

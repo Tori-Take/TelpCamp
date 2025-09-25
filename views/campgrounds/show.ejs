@@ -57,6 +57,8 @@
             </div>
         </div>
         <div class="col-md-6">
+            <div id='map' style="height: 300px;" class="mb-3" data-campground='<%- JSON.stringify(campground) %>'
+                data-token='<%- mapboxToken %>'></div>
             <% if(currentUser) { %>
                 <h2>レビューを投稿</h2>
                 <form action="/campgrounds/<%=campground._id%>/reviews" method="POST" class="mb-3 validated-form"
@@ -112,3 +114,5 @@
                         <% } %>
         </div>
     </div>
+
+    <script src="/javascripts/showPageMap.js"></script>

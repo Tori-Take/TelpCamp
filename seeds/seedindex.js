@@ -21,19 +21,31 @@ const seedDB = async () => {
     await Campground.deleteMany({});
     // 50件のサンプルデータを作成・保存します
     for (let i = 0; i < 50; i++) {
-        // cities配列からランダムな都市のインデックスを取得
-        const randomCityIndex = Math.floor(Math.random() * cities.length);
+        // cities配列からランダムな都市を取得
+        const randomCity = sample(cities);
         // 1000円から5999円のランダムな価格を生成
         const price = Math.floor(Math.random() * 5000) + 1000;
         const camp = new Campground({
             // 指定されたユーザーIDを登録者として設定
             author: '68cf48203000edac04789145',
             // 例: 「北海道札幌市」
-            location: `${cities[randomCityIndex].prefecture}${cities[randomCityIndex].city}`,
+            location: `${randomCity.prefecture}${randomCity.city}`,
             // 例: 「サイレント・キャンプ」
             name: `${sample(descriptors)}・${sample(places)}`,
-            // picsum.photosからランダムな画像を取得するURL。ループのインデックスiを使ってユニークな画像を生成します。
-            image: `https://picsum.photos/id/${i+100}/800/600`,
+            // GeoJSON形式で緯度・経度データを設定
+            geometry: {
+                type: 'Point',
+                coordinates: [
+                    randomCity.longitude, // 経度
+                    randomCity.latitude   // 緯度
+                ]
+            },
+            images: [
+                {
+                    url: `https://picsum.photos/id/${i + 100}/800/600`,
+                    filename: `TelpCamp/seed_image_${i}`
+                }
+            ],
             price: price,
             description: sample(descriptions)
         });

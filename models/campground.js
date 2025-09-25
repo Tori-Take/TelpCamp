@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Review = require('./review'); // 追加: Reviewモデルを読み込む
 const Schema = mongoose.Schema;
-const { cloudinary } = require('../cloudinary');
+const { cloudinary } = require('../Cloudinary');
 
 const campgroundSchema = new Schema({
     name: { type: String, required: true },
@@ -11,6 +11,17 @@ const campgroundSchema = new Schema({
             filename: String
         }
     ],
+    geometry: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            required: true
+        },
+        coordinates: {
+            type: [Number],
+            required: true
+        }
+    },
     price: { type: Number, required: true, min: 0 },
     description: { type: String, required: true },
     location: { type: String, required: true },

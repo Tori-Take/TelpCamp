@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp プロジェクト作成の記録 - コラム7</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+        }
+
+        h2 {
+            font-size: 2em;
+        }
+
+        h3 {
+            font-size: 1.5em;
+            margin-top: 40px;
+            border-bottom-style: dotted;
+        }
+
+        p {
+            margin-bottom: 15px;
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        strong {
+            color: #e74c3c;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        .step {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>コラム7: デプロイ前のセキュリティ総点検</h2>
+        <p>TelpCampの機能実装が完了し、いよいよデプロイが見えてきました。
+            しかし、アプリケーションを公開する前に、必ず対応しなければならない重要なステップがあります。それが「セキュリティ対策」です。</p>
+        <p>このコラムでは、デプロイ前に検討すべき6つの基本的なセキュリティ課題と、その対策がなぜ必要なのかをまとめています。</p>
+
+        <h3>1. MongoDBインジェクション対策</h3>
+        <p><strong>なぜ必要か？</strong></p>
+        <p>これは、<strong>データベースの不正操作を防ぐため</strong>です。悪意のあるユーザーが入力フォームにデータベースを操作するコマンドを紛れ込ませる攻撃を防ぎます。対策が不十分だと、個人情報が盗まれたり、データが改ざん・削除されたりする危険があります。
+        </p>
+
+        <h3>2. クロスサイトスクリプティング（XSS）対策</h3>
+        <p><strong>なぜ必要か？</strong></p>
+        <p>これは、<strong>サイトを閲覧しているユーザーを悪意のあるスクリプトから守るため</strong>です。レビュー投稿欄などに悪質なスクリプトが書き込まれると、他の閲覧者のブラウザで実行されてしまい、アカウント乗っ取りなどの被害に繋がる可能性があります。
+        </p>
+
+        <h3>3. JOIでHTMLのサニタイズ</h3>
+        <p><strong>なぜ必要か？</strong></p>
+        <p>これは、<strong>XSS攻撃を防ぐための具体的な手法の一つ</strong>です。「サニタイズ（無害化）」とは、ユーザー入力に含まれる<code>&lt;script&gt;</code>タグのような危険な文字列を、単なる文字の並びに変換する処理です。これをサーバー側で一貫して行うことで、XSSのリスクを根本から減らします。
+        </p>
+
+        <h3>4. セッション・クッキーの改善</h3>
+        <p><strong>なぜ必要か？</strong></p>
+        <p>これは、<strong>ユーザーのログイン状態（セッション）を乗っ取りから守るため</strong>です。クッキーが盗まれると、攻撃者はそのユーザーになりすましてログインできてしまいます。<code>secret</code>の強化や<code>secure</code>、<code>httpOnly</code>属性を適切に設定することで、セッションの安全性が格段に向上します。
+        </p>
+
+        <h3>5. エラーを隠す (本番環境で)</h3>
+        <p><strong>なぜ必要か？</strong></p>
+        <p>これは、<strong>攻撃者にシステムの内部情報というヒントを与えないため</strong>です。開発中は詳細なエラー情報が便利ですが、本番環境でそれを表示すると、システムの弱点を探るための貴重な情報を与えることになります。本番環境ではシンプルなエラーメッセージだけを表示するようにします。
+        </p>
+
+        <h3>6. helmetの導入</h3>
+        <p><strong>なぜ必要か？</strong></p>
+        <p>これは、<strong>Expressアプリケーションのセキュリティをまとめて簡単に強化するため</strong>です。<code>helmet</code>は、HTTPヘッダーにセキュリティ関連の設定を適切に追加してくれるミドルウェアです。これを導入するだけで、10数個のセキュリティ対策を自動的に適用してくれます。
+        </p>
+
+    </div>
+
+</body>
+
+</html>

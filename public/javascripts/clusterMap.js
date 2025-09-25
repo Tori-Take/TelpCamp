@@ -12,6 +12,14 @@ const map = new mapboxgl.Map({
 
 // ナビゲーションコントロール（ズームイン・アウトボタン）を追加
 map.addControl(new mapboxgl.NavigationControl());
+// フルスクリーンコントロールを追加
+map.addControl(new mapboxgl.FullscreenControl());
+// スケールコントロールを追加
+map.addControl(new mapboxgl.ScaleControl({
+    maxWidth: 100,
+    unit: 'metric'
+}));
+
 
 map.on('load', () => {
     // 地図のラベルを日本語に設定
@@ -26,9 +34,7 @@ map.on('load', () => {
                 type: 'Feature',
                 geometry: camp.geometry,
                 properties: {
-                    id: camp._id,
-                    name: camp.name,
-                    location: camp.location
+                    popUpMarkup: `<strong><a href="/campgrounds/${camp._id}">${camp.name}</a></strong><p>${camp.description.substring(0, 20)}...</p>`
                 }
             }))
         },
@@ -101,12 +107,12 @@ map.on('load', () => {
 
     // 個々のマーカーをクリックしたときの処理
     map.on('click', 'unclustered-point', (e) => {
-        const { id, name, location } = e.features[0].properties;
+        const { popUpMarkup } = e.features[0].properties;
         const coordinates = e.features[0].geometry.coordinates.slice();
 
         new mapboxgl.Popup()
             .setLngLat(coordinates)
-            .setHTML(`<h5><a href="/campgrounds/${id}">${name}</a></h5><p>${location}</p>`)
+            .setHTML(popUpMarkup)
             .addTo(map);
     });
 

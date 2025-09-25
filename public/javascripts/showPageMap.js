@@ -5,7 +5,7 @@ const mapboxToken = mapElement.dataset.token;
 mapboxgl.accessToken = mapboxToken;
 const map = new mapboxgl.Map({
     container: 'map', // container ID
-    style: 'mapbox://styles/mapbox/streets-v12', // style URL
+    style: 'mapbox://styles/mapbox/satellite-streets-v12', // 衛星写真スタイルに変更
     center: campground.geometry.coordinates, // starting position [lng, lat]
     zoom: 10, // starting zoom
 });

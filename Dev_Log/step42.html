@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 42: 詳細ページへの地図表示</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 42: 詳細ページへの地図表示 (Mapbox Geocoding)</h2>
+        <p>
+            キャンプ場の場所を視覚的に分かりやすくするため、各キャンプ場の詳細ページにMapboxを利用した地図を表示する機能を実装しました。
+            この機能の核となるのは、ユーザーが入力した地名（例：「東京都庁」）を、地図上に表示可能な緯度・経度の座標に変換する「ジオコーディング」という技術です。
+        </p>
+        <h3>学習の目的</h3>
+        <ul>
+            <li>Mapbox Geocoding APIを利用して、地名から座標を取得する方法を学ぶ。</li>
+            <li>非同期処理（<code>async/await</code>）を使い、外部APIからのレスポンスを待って処理を続行する方法を実践する。</li>
+            <li>取得した座標データを、MongooseのGeoJSON形式（<code>Point</code>）でデータベースに保存する方法を習得する。</li>
+            <li>詳細ページで、保存された座標データを使ってMapboxの地図とマーカーを表示する方法を学ぶ。</li>
+            <li>APIキーなどの機密情報を環境変数（<code>.env</code>）で管理し、安全性を高める。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+        <p>
+            実装は、キャンプ場の新規登録・編集時にジオコーディングを行い、詳細ページでその結果を利用して地図を描画するという流れで行いました。
+        </p>
+        <h4>1. Mapbox Geocodingクライアントの準備</h4>
+        <p>
+            MapboxのAPIを利用するためのクライアントをインストールし、アクセストークンを設定しました。
+        </p>
+        <pre><code class="language-shell">npm install @mapbox/mapbox-sdk</code></pre>
+        <pre><code class="language-javascript">// index.js or a dedicated config file
+const mbxGeocoding = require('@mapbox/mapbox-sdk/services/geocoding');
+const mapBoxToken = process.env.MAPBOX_TOKEN;
+const geocoder = mbxGeocoding({ accessToken: mapBoxToken });
+</code></pre>
+
+        <h4>2. ジオコーディングと座標の保存 (<code>controllers/campgrounds.js</code>)</h4>
+        <p>
+            キャンプ場の新規登録(<code>createCampground</code>)と更新(<code>updateCampground</code>)のコントローラーに、ジオコーディング処理を追加しました。
+            Mapbox Geocoding
+            APIに地名（<code>req.body.campground.location</code>）を問い合わせ、返ってきた座標を<code>geometry</code>フィールドに保存します。
+        </p>
+        <pre><code class="language-javascript">// controllers/campgrounds.js
+module.exports.createCampground = async (req, res, next) => {
+    const geoData = await geocoder.forwardGeocode({
+        query: req.body.campground.location,
+        limit: 1
+    }).send();
+    const campground = new Campground(req.body.campground);
+    campground.geometry = geoData.body.features[0].geometry; // 座標を保存
+    // ...
+    await campground.save();
+    // ...
+};
+</code></pre>
+
+        <h4>3. Campgroundモデルの更新 (<code>models/campground.js</code>)</h4>
+        <p>
+            ジオコーディングの結果（GeoJSON）を保存するため、<code>geometry</code>フィールドをスキーマに追加しました。
+        </p>
+        <pre><code class="language-javascript">// models/campground.js
+const campgroundSchema = new Schema({
+    // ...
+    geometry: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            required: true
+        },
+        coordinates: {
+            type: [Number],
+            required: true
+        }
+    },
+    // ...
+});
+</code></pre>
+
+        <h4>4. 詳細ページでの地図とマーカーの表示 (<code>show.ejs</code>, <code>showPageMap.js</code>)</h4>
+        <p>
+            詳細ページ(<code>show.ejs</code>)にMapboxのライブラリと地図を表示するコンテナを設置しました。
+            そして、サーバーから渡されたキャンプ場の座標(<code>campground.geometry.coordinates</code>)を使い、地図の中心設定とマーカーの追加を行うJavaScript(<code>showPageMap.js</code>)を読み込みます。
+        </p>
+        <pre><code class="language-html">&lt;!-- show.ejs --&gt;
+&lt;div id='map' style='width: 100%; height: 300px;'&gt;&lt;/div&gt;
+
+&lt;script&gt;
+    const mapToken = '&lt;%- process.env.MAPBOX_TOKEN %&gt;';
+    const campground = &lt;%- JSON.stringify(campground) %&gt;;
+&lt;/script&gt;
+&lt;script src="/javascripts/showPageMap.js"&gt;&lt;/script&gt;
+</code></pre>
+        <pre><code class="language-javascript">// public/javascripts/showPageMap.js
+mapboxgl.accessToken = mapToken;
+const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/streets-v11',
+    center: campground.geometry.coordinates, // キャンプ場の座標
+    zoom: 10
+});
+
+// マーカーを追加
+new mapboxgl.Marker()
+    .setLngLat(campground.geometry.coordinates)
+    .setPopup(
+        new mapboxgl.Popup({ offset: 25 })
+            .setHTML(`&lt;h3&gt;${campground.title}&lt;/h3&gt;&lt;p&gt;${campground.location}&lt;/p&gt;`)
+    )
+    .addTo(map);
+</code></pre>
+        <p>
+            この実装により、ユーザーはキャンプ場の場所を地図上で直感的に確認できるようになり、利便性が大きく向上しました。また、この座標データは次のステップであるクラスターマップ実装の基礎となります。
+        </p>
+    </div>
+
+</body>
+
+</html>

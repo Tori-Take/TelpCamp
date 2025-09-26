@@ -9,6 +9,7 @@ const ExpressError = require('./utils/ExpressError'); // 作成したExpressErro
 const session = require('express-session');
 const flash = require('connect-flash');
 const passport = require('passport');
+const mongoSanitize = require('express-mongo-sanitize');
 const LocalStrategy = require('passport-local');
 const User = require('./models/user');
 
@@ -21,22 +22,6 @@ const campgroundRoutes = require('./routes/campgrounds');
 const wrapAsync = require('./utils/wrapAsync');
 const reviewRoutes = require('./routes/reviews');
 const userRoutes = require('./routes/users');
-
-// --- データベース接続 ---
-// データベース接続処理を非同期関数として定義します
-async function connectDB() {
-  try {
-    // 'telp-camp' という名前のデータベースに接続します
-    // この処理は完了するまで待つ必要があるため await を使います
-    await mongoose.connect('mongodb://127.0.0.1:27017/telp-camp');
-    console.log("MongoDBに接続しました。");
-  } catch (err) {
-    // もし接続中にエラーが起きたら、内容を表示します
-    console.error("MongoDB接続エラー:", err);
-  }
-}
-// サーバー起動時にデータベース接続を実行します
-connectDB();
 
 // --- Expressの設定 ---
 // ejs-mateをEJSのデフォルトエンジンとして使用する設定
@@ -51,12 +36,15 @@ app.use(express.urlencoded({ extended: true }));
 // method-overrideを使用するための設定
 app.use(methodOverride('_method'));
 
+// MongoDBインジェクション攻撃を防ぐためのサニタイズ (現在、passportとの競合のため一時的に無効化)
+// app.use(mongoSanitize());
+
 // publicディレクトリの静的ファイルを提供するための設定
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- セッションの設定 ---
+// --- セッションと認証の設定 ---
 const sessionConfig = {
-    secret: process.env.SESSION_SECRET || 'mysecret', // 環境変数からsecretを読み込む
+    secret: process.env.SESSION_SECRET || 'mysecret',
     resave: false, // セッションに変更がない場合でも再保存しない
     saveUninitialized: true, // 未初期化のセッションを保存する
     cookie: {
@@ -67,11 +55,8 @@ const sessionConfig = {
     }
 };
 app.use(session(sessionConfig));
+app.use(flash()); // flashはsessionの後に記述
 
-// フラッシュメッセージ用のミドルウェア
-app.use(flash());
-
-// --- Passportの設定 ---
 // Passportを初期化し、セッションでログイン状態を維持するためのミドルウェア
 app.use(passport.initialize());
 app.use(passport.session()); // session()ミドルウェアの後に記述することが重要
@@ -90,11 +75,6 @@ app.use((req, res, next) => {
     res.locals.error = req.flash('error');
     next();
 });
-// --- ルーティング ---
-// ルーターを使用する
-app.use('/campgrounds', campgroundRoutes);
-app.use('/campgrounds/:id/reviews', reviewRoutes);
-app.use('/', userRoutes);
 
 // トップページ('/')へのGETリクエストが来たときの処理
 app.get('/', (req, res) => {
@@ -102,7 +82,12 @@ app.get('/', (req, res) => {
     res.render('home');
 });
 
-// セッションの動作確認用テストルート
+// --- ルーティングの定義 ---
+app.use('/campgrounds', campgroundRoutes);
+app.use('/campgrounds/:id/reviews', reviewRoutes);
+app.use('/', userRoutes);
+
+// セッションの動作確認用テストルート (重複を削除し、ここに一本化)
 app.get('/sessiontest', (req, res) => {
     if (req.session.count) {
         req.session.count++;
@@ -128,8 +113,21 @@ app.use((err, req, res, next) => {
     res.status(statusCode).render('error', { err });
 });
 
-// --- サーバー起動 ---
-const port = 3000;
-app.listen(port, () => {
-  console.log(`TelpCampサーバーがポート${port}で待機中...`);
-});
+// --- データベース接続とサーバー起動 ---
+async function startServer() {
+    try {
+        // 'telp-camp' データベースに接続します
+        await mongoose.connect('mongodb://127.0.0.1:27017/telp-camp');
+        console.log("MongoDBに接続しました。");
+
+        // データベース接続が成功した後にサーバーを起動します
+        const port = 3000;
+        app.listen(port, () => {
+            console.log(`TelpCampサーバーがポート${port}で待機中...`);
+        });
+    } catch (err) {
+        console.error("起動エラー:", err);
+    }
+}
+
+startServer();

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - コラム: セキュリティ対策の落とし穴</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #e74c3c;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #c0392b;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #fdf2e9;
+            border-left: 5px solid #e67e22;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>特別コラム: セキュリティ対策の落とし穴 - `mongo-sanitize`との格闘</h2>
+        <p>
+            今回は通常の機能実装のステップとは少し趣向を変え、開発中に直面した大きな壁と、そこから得られた教訓について記録します。
+            テーマは、セキュリティ対策として導入しようとした<code>express-mongo-sanitize</code>ライブラリとの格闘です。
+        </p>
+        <h3>目的: NoSQLインジェクション対策の導入</h3>
+        <p>
+            アプリケーションのセキュリティを向上させるため、ユーザーからの入力に<code>$</code>や<code>.</code>といったMongoDBの演算子として解釈されうる文字が含まれていた場合に、それらを無害化する<code>express-mongo-sanitize</code>を導入しようと試みました。
+            導入自体は<code>npm install</code>と<code>app.use()</code>の1行を追加するだけの、ごく簡単なはずでした。
+        </p>
+        <pre><code class="language-javascript">// index.js にこの1行を追加した
+app.use(mongoSanitize());</code></pre>
+    </div>
+
+    <div class="step">
+        <h2>直面した問題: 謎の認証エラー</h2>
+        <p>
+            しかし、この1行を追加した途端、アプリケーションが正常に動作しなくなりました。ログインしているにも関わらず、すべてのページで<code>currentUser is not defined</code>というエラーが発生し、サーバーがクラッシュするようになったのです。
+            これは、認証ライブラリであるPassportがユーザー情報を正しく復元できず、<code>req.user</code>が<code>undefined</code>になってしまったことが原因でした。
+        </p>
+        <h4>デバッグの長い道のり</h4>
+        <p>
+            ここから、原因を特定するための長い試行錯誤が始まりました。
+        </p>
+        <ul>
+            <li><strong>仮説1: ミドルウェアの順序？</strong> → <code>passport</code>の前や後に配置を変えても解決せず。</li>
+            <li><strong>仮説2: オブジェクトの構造破壊？</strong> →
+                <code>replaceWith: '_'</code>や<code>allowDots: true</code>といったオプションを試すも効果なし。
+            </li>
+            <li><strong>仮説3: 何がサニタイズされている？</strong> → <code>onSanitize</code>オプションでログを出力しようとしたが、何もログに表示されず、謎は深まるばかり。
+            </li>
+        </ul>
+        <div class="concept">
+            <h4>💡 根本原因の推測: 見えないライブラリ間の競合</h4>
+            <p>
+                数々の試行錯誤の結果、問題は「何かが削除された」ことではなく、もっと根深い部分にあると結論付けました。
+                <code>express-mongo-sanitize</code>は、たとえサニタイズ対象の文字がなくても、リクエストオブジェクト（<code>req.body</code>など）を内部的に再構築するようです。
+                この再構築の過程で、<code>passport</code>が依存しているオブジェクトの内部的な特性が失われてしまい、セッションからユーザー情報を復元する処理が失敗していた、というのが最も有力な推測です。
+                これは、2つのライブラリが互いの内部実装を予期しない形で妨害しあう、非常に見つけにくい「競合問題」でした。
+            </p>
+        </div>
+
+        <h3>得られた教訓と次のステップ</h3>
+        <p>
+            セキュリティ対策は非常に重要ですが、今回の経験から、ライブラリの導入が予期せぬ副作用を生むことがあると痛感しました。
+            特に、リクエストオブジェクトに深く関わる認証ミドルウェアとセキュリティミドルウェアの組み合わせは、慎重に検証する必要があります。
+        </p>
+        <p>
+            一つの問題に時間をかけすぎることは、学習の停滞に繋がります。そこで、今回は一度<code>express-mongo-sanitize</code>の導入を見送り、アプリケーションの主要機能の開発を優先するという判断をしました。
+            この問題は、プロジェクトが完成に近づいた段階で、異なるアプローチ（例えば、ルートごとに個別にサニタイズ処理を適用するなど）で再挑戦する予定です。
+        </p>
+        <p>
+            プログラミングは、単にコードを書くだけでなく、こうした問題解決のプロセスそのものであることを改めて学びました。この失敗の記録が、未来の自分や同じ問題に直面した誰かの助けになることを願っています。
+        </p>
+        <p>
+            <strong>重要:</strong>
+            今回、学習の進行を優先してサニタイズ機能を一時的に無効化しましたが、これはあくまで開発中の措置です。NoSQLインジェクションは深刻な脆弱性であり、アプリケーションを本番環境で公開する前には、必ずこの機能を再度有効にし、正しく設定することが不可欠です。セキュリティは後から付け足すものではなく、開発のあらゆる段階で考慮すべき重要な要素です。
+        </p>
+    </div>
+
+</body>
+
+</html>

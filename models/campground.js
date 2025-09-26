@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Review = require('./review'); // 追加: Reviewモデルを読み込む
 const Schema = mongoose.Schema;
-const { cloudinary } = require('../Cloudinary');
+const { cloudinary } = require('../cloudinary');
 
 const campgroundSchema = new Schema({
     name: { type: String, required: true },

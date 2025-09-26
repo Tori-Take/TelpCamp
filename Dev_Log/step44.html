@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelpCamp 開発記録 - Step 44: MongoDB Atlasへの接続</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px
+        }
+
+        h4 {
+            border-bottom: none;
+            color: #3498db;
+        }
+
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        pre {
+            background-color: #2c3e50;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .step {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .concept {
+            background-color: #e8f6f3;
+            border-left: 5px solid #1abc9c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>TelpCamp プロジェクト作成の記録</h1>
+
+    <div class="step">
+        <h2>Step 44: 本番環境への第一歩 - MongoDB Atlasへの接続</h2>
+        <p>
+            いよいよアプリケーションのデプロイ（公開）に向けて、最初の大きなステップに進みます。これまでは開発用PCの中にあるローカルのMongoDBを使用していましたが、これをインターネット経由でどこからでもアクセスできるクラウドデータベース「MongoDB
+            Atlas」に移行します。
+        </p>
+        <h3>学習の目的</h3>
+        <ul>
+            <li>ローカルDBからクラウドDBへ移行する目的とメリットを理解する。</li>
+            <li>MongoDB Atlasの基本的な用語（プロジェクト、クラスター、データベースユーザー）の役割を整理する。</li>
+            <li>環境変数（<code>.env</code>ファイル）を使い、機密情報である接続文字列を安全に管理する方法を学ぶ。</li>
+            <li>接続文字列にデータベース名を正しく指定し、意図したデータベースに接続する方法を習得する。</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>実装の解説</h2>
+
+        <h4>1. MongoDB Atlasのセットアップ</h4>
+        <p>
+            まず、MongoDB Atlasのサイトでデータベースの器を用意します。
+        </p>
+        <div class="concept">
+            <h4>💡 Atlasの階層構造</h4>
+            <ol>
+                <li><strong>プロジェクト:</strong> アプリケーション全体を管理する一番大きな箱。今回は「TelpCamp-Prod」のような名前で作成しました。</li>
+                <li><strong>クラスター:</strong> 実際にデータベースが動くサーバー群。無料枠の「M0」で「telpcampcluster」を作成しました。</li>
+                <li><strong>データベースユーザー:</strong>
+                    <strong>アプリケーションが</strong>データベースに接続するためのIDとパスワード。Atlasの管理画面にログインする人間（プロジェクトメンバー）とは全く別物です。</li>
+                <li><strong>ネットワークアクセス:</strong> どこからの接続を許可するかの設定。開発中は「ALLOW ACCESS FROM
+                    ANYWHERE」(<code>0.0.0.0/0</code>)に設定しました。</li>
+            </ol>
+        </div>
+
+        <h4>2. アプリケーション側の設定</h4>
+        <p>
+            Atlasで取得した接続文字列を、アプリケーションに安全な方法で設定します。
+        </p>
+        <ol>
+            <li>
+                <strong><code>.env</code>ファイルの作成:</strong>
+                <p>パスワードなどの機密情報をコードに直接書くのは非常に危険です。そこで、プロジェクトのルートに<code>.env</code>ファイルを作成し、そこに接続文字列を記述します。</p>
+                <pre><code class="language-text"># .env
+DB_URL=mongodb+srv://&lt;ユーザー名&gt;:&lt;パスワード&gt;@telpcampcluster.xxxxx.mongodb.net/telp-camp?retryWrites=true...</code></pre>
+                <div class="concept">
+                    <h4>💡 データベース名の指定が最重要！</h4>
+                    <p>接続文字列の<code>.net/</code>と<code>?retryWrites</code>の間に、使用したいデータベース名（今回は<code>/telp-camp</code>）を必ず指定します。これを忘れると、MongoDBはデフォルトの<code>test</code>という名前のデータベースを自動的に使用してしまいます。今回の作業で、実際にデータが<code>test</code>データベースに保存されてしまう現象に遭遇し、この指定の重要性を実感しました。
+                    </p>
+                </div>
+            </li>
+            <li>
+                <strong><code>.gitignore</code>の更新:</strong>
+                <p>機密情報が含まれる<code>.env</code>ファイルがGitリポジトリにアップロードされないように、<code>.gitignore</code>に<code>.env</code>を追記します。
+                </p>
+                <pre><code class="language-text"># .gitignore
+node_modules/
+.env</code></pre>
+            </li>
+            <li>
+                <strong><code>index.js</code>の修正:</strong>
+                <p><code>dotenv</code>パッケージが<code>.env</code>ファイルを読み込み、その値を<code>process.env.DB_URL</code>として利用できるようにします。そして、データベース接続部分を以下のように修正しました。
+                </p>
+                <pre><code class="language-javascript">// index.js
+// .envファイルから環境変数を読み込む (開発環境でのみ使用)
+if (process.env.NODE_ENV !== 'production') require('dotenv').config();
+
+// ...
+
+async function startServer() {
+    // 環境変数にDB_URLがあればそれ(Atlas)を使い、なければローカルDBを使う
+    const dbUrl = process.env.DB_URL || 'mongodb://127.0.0.1:27017/telp-camp';
+    try {
+        await mongoose.connect(dbUrl);
+        console.log("MongoDBに接続しました。");
+        // ...
+    }
+}</code></pre>
+                <p>この設定により、<code>.env</code>ファイルがあればAtlasに、なければ（またはコメントアウトすれば）従来のローカルDBに接続先を簡単に切り替えられるようになりました。</p>
+            </li>
+        </ol>
+
+        <h4>3. 動作確認</h4>
+        <p>
+            サーバーを起動(<code>node index.js</code>)し、コンソールに「MongoDBに接続しました。」と表示されることを確認。その後、実際にキャンプ場やユーザーを登録し、Atlasの管理画面の「Browse
+            Collections」から、意図したプロジェクトの<code>telp-camp</code>データベースにデータが保存されていることを確認して、移行作業は完了です！
+        </p>
+    </div>
+
+</body>
+
+</html>

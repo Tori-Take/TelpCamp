@@ -115,9 +115,11 @@ app.use((err, req, res, next) => {
 
 // --- データベース接続とサーバー起動 ---
 async function startServer() {
+    // 開発環境ではローカルDB、本番環境ではAtlasのDBに接続
+    const dbUrl = process.env.DB_URL || 'mongodb://127.0.0.1:27017/telp-camp';
     try {
-        // 'telp-camp' データベースに接続します
-        await mongoose.connect('mongodb://127.0.0.1:27017/telp-camp');
+        // データベースに接続します
+        await mongoose.connect(dbUrl);
         console.log("MongoDBに接続しました。");
 
         // データベース接続が成功した後にサーバーを起動します

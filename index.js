@@ -12,6 +12,7 @@ const passport = require('passport');
 const mongoSanitize = require('express-mongo-sanitize');
 const LocalStrategy = require('passport-local');
 const User = require('./models/user');
+const MongoStore = require('connect-mongo');
 
 // .envファイルから環境変数を読み込む (開発環境でのみ使用)
 if (process.env.NODE_ENV !== 'production') require('dotenv').config();
@@ -42,8 +43,21 @@ app.use(methodOverride('_method'));
 // publicディレクトリの静的ファイルを提供するための設定
 app.use(express.static(path.join(__dirname, 'public')));
 
+// 開発環境ではローカルDB、本番環境ではAtlasのDBに接続
+const dbUrl = process.env.DB_URL || 'mongodb://127.0.0.1:27017/telp-camp';
+
+const store = MongoStore.create({
+    mongoUrl: dbUrl,
+    touchAfter: 24 * 60 * 60, // 24時間ごとにセッションを更新
+    crypto: {
+        secret: process.env.SESSION_SECRET || 'mysecret'
+    }
+});
+
 // --- セッションと認証の設定 ---
 const sessionConfig = {
+    store, // セッションの保存先をMongoDBに設定
+    name: 'session', // クッキーの名前を変更（デフォルトはconnect.sid）
     secret: process.env.SESSION_SECRET || 'mysecret',
     resave: false, // セッションに変更がない場合でも再保存しない
     saveUninitialized: true, // 未初期化のセッションを保存する
@@ -115,8 +129,6 @@ app.use((err, req, res, next) => {
 
 // --- データベース接続とサーバー起動 ---
 async function startServer() {
-    // 開発環境ではローカルDB、本番環境ではAtlasのDBに接続
-    const dbUrl = process.env.DB_URL || 'mongodb://127.0.0.1:27017/telp-camp';
     try {
         // データベースに接続します
         await mongoose.connect(dbUrl);

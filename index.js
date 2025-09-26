@@ -135,7 +135,7 @@ async function startServer() {
         console.log("MongoDBに接続しました。");
 
         // データベース接続が成功した後にサーバーを起動します
-        const port = 3000;
+        const port = process.env.PORT || 3000;
         app.listen(port, () => {
             console.log(`TelpCampサーバーがポート${port}で待機中...`);
         });
